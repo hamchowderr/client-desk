@@ -1,0 +1,11 @@
+{
+  "name": "otaku-client-desk",
+  "owner": { "name": "Otaku Solutions" },
+  "plugins": [
+    {
+      "name": "client-desk",
+      "source": "./plugin",
+      "description": "Client Desk MCP server plus intake, status and delivery skills."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "name": "client-desk",
+  "version": "1.0.0",
+  "description": "Retainer clients, requests and queues for Otaku Solutions: API, MCP server and agents on Mastra.",
+  "scripts": {
+    "dev": "npm run build:apps && mastra dev",
+    "build": "npm run build:apps && mastra build && npm run build:migrate",
+    "start": "node .mastra/output/index.mjs",
+    "build:apps": "node scripts/build-apps.mjs",
+    "build:migrate": "esbuild src/scripts/migrate.ts --bundle --platform=node --format=esm --outfile=dist/migrate.mjs --log-level=warning",
+    "pretypecheck": "npm run build:apps",
+    "typecheck": "tsc",
+    "pretest": "npm run build:apps",
+    "test": "vitest run",
+    "test:mcp": "tsx test/e2e/mcp-smoke.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "key:create": "tsx src/scripts/create-key.ts",
+    "import": "tsx src/scripts/import.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "@mastra/core": "^1.77.0",
+    "@mastra/mcp": "^2.4.0",
+    "@mastra/pg": "^1.31.1",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.2.0",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@types/node": "^26.6.5",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
+    "mastra": "^1.34.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.4"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  }
+}
