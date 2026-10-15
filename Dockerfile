@@ -14,6 +14,6 @@ COPY --from=build /app/.mastra/output ./.mastra/output
 COPY --from=build /app/dist/migrate.mjs ./dist/migrate.mjs
 COPY --from=build /app/drizzle ./drizzle
 EXPOSE 4111
-HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://localhost:4111/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://localhost:'+(process.env.PORT||4111)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 # Migrations are idempotent; run them on every start, then serve.
 CMD ["sh", "-c", "node dist/migrate.mjs && node .mastra/output/index.mjs"]
