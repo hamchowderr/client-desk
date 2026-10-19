@@ -10,6 +10,8 @@ RUN npm run build
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production MASTRA_TELEMETRY_DISABLED=1 PORT=4111 HOST=0.0.0.0
+# Coolify's health check runs curl inside the container.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/.mastra/output ./.mastra/output
 COPY --from=build /app/dist/migrate.mjs ./dist/migrate.mjs
 COPY --from=build /app/drizzle ./drizzle
