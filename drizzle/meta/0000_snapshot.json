@@ -1,12 +1,12 @@
 {
-  "id": "2e7258d6-6bd6-4746-8e17-d63b677dae23",
+  "id": "987631da-0c97-47d0-aef4-7d705da2b650",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "desk.api_keys": {
+    "public.api_keys": {
       "name": "api_keys",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -71,7 +71,6 @@
           "name": "api_keys_client_id_clients_id_fk",
           "tableFrom": "api_keys",
           "tableTo": "clients",
-          "schemaTo": "desk",
           "columnsFrom": [
             "client_id"
           ],
@@ -96,9 +95,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "desk.channels": {
+    "public.channels": {
       "name": "channels",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -161,7 +160,6 @@
           "name": "channels_client_id_clients_id_fk",
           "tableFrom": "channels",
           "tableTo": "clients",
-          "schemaTo": "desk",
           "columnsFrom": [
             "client_id"
           ],
@@ -178,9 +176,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "desk.clients": {
+    "public.clients": {
       "name": "clients",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -240,6 +238,12 @@
           "notNull": true,
           "default": 0
         },
+        "claim": {
+          "name": "claim",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -264,9 +268,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "desk.contacts": {
+    "public.contacts": {
       "name": "contacts",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -342,7 +346,6 @@
           "name": "contacts_client_id_clients_id_fk",
           "tableFrom": "contacts",
           "tableTo": "clients",
-          "schemaTo": "desk",
           "columnsFrom": [
             "client_id"
           ],
@@ -359,9 +362,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "desk.pauses": {
+    "public.pauses": {
       "name": "pauses",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -418,7 +421,6 @@
           "name": "pauses_retainer_id_retainers_id_fk",
           "tableFrom": "pauses",
           "tableTo": "retainers",
-          "schemaTo": "desk",
           "columnsFrom": [
             "retainer_id"
           ],
@@ -435,9 +437,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "desk.requests": {
+    "public.requests": {
       "name": "requests",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -634,7 +636,6 @@
           "name": "requests_client_id_clients_id_fk",
           "tableFrom": "requests",
           "tableTo": "clients",
-          "schemaTo": "desk",
           "columnsFrom": [
             "client_id"
           ],
@@ -651,14 +652,14 @@
       "checkConstraints": {
         "requests_size_days": {
           "name": "requests_size_days",
-          "value": "\"desk\".\"requests\".\"size_days\" is null or \"desk\".\"requests\".\"size_days\" between 2 and 5"
+          "value": "\"requests\".\"size_days\" is null or \"requests\".\"size_days\" between 2 and 5"
         }
       },
       "isRLSEnabled": false
     },
-    "desk.retainers": {
+    "public.retainers": {
       "name": "retainers",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -738,6 +739,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "claim": {
+          "name": "claim",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -758,7 +765,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"desk\".\"retainers\".\"status\" <> 'ended'",
+          "where": "\"retainers\".\"status\" <> 'ended'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -769,7 +776,6 @@
           "name": "retainers_client_id_clients_id_fk",
           "tableFrom": "retainers",
           "tableTo": "clients",
-          "schemaTo": "desk",
           "columnsFrom": [
             "client_id"
           ],
@@ -786,14 +792,14 @@
       "checkConstraints": {
         "retainers_active_limit_positive": {
           "name": "retainers_active_limit_positive",
-          "value": "\"desk\".\"retainers\".\"active_limit\" between 1 and 10"
+          "value": "\"retainers\".\"active_limit\" between 1 and 10"
         }
       },
       "isRLSEnabled": false
     },
-    "desk.updates": {
+    "public.updates": {
       "name": "updates",
-      "schema": "desk",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
@@ -870,7 +876,6 @@
           "name": "updates_request_id_requests_id_fk",
           "tableFrom": "updates",
           "tableTo": "requests",
-          "schemaTo": "desk",
           "columnsFrom": [
             "request_id"
           ],
@@ -889,9 +894,7 @@
     }
   },
   "enums": {},
-  "schemas": {
-    "desk": "desk"
-  },
+  "schemas": {},
   "sequences": {},
   "roles": {},
   "policies": {},

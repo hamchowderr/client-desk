@@ -11,10 +11,14 @@ import { deskRoutes } from './routes'
  * Channel agents for clients arrive in Phase 3.
  */
 export const mastra = new Mastra({
-  // Mastra's own tables (traces, threads, later agent memory) live in the same
-  // Supabase database, kept apart from desk.* in their own schema.
-  ...(process.env.DATABASE_URL && {
-    storage: new PostgresStore({ id: 'desk-mastra', connectionString: process.env.DATABASE_URL, schemaName: 'mastra' }),
+  // Mastra's own tables (traces, threads, later agent memory) need no history, so
+  // they stay in plain Postgres (Supabase); the desk itself is on Doltgres.
+  ...(process.env.MASTRA_DATABASE_URL && {
+    storage: new PostgresStore({
+      id: 'desk-mastra',
+      connectionString: process.env.MASTRA_DATABASE_URL,
+      schemaName: 'mastra',
+    }),
   }),
   mcpServers: { desk: deskMcp, 'desk-client': clientMcp },
   server: {

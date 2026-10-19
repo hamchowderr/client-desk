@@ -1,10 +1,10 @@
 import { registerApiRoute } from '@mastra/core/server'
 import type { ApiRoute } from '@mastra/core/server'
 import { z } from 'zod'
-import { getDb } from '../db/client'
 import { DeskError } from '../domain/errors'
 import { principalFrom } from './principal'
 import { type Op, allOps } from './ops'
+import { runOp } from './run'
 
 /** Unwrap optional/default to find what a query-string value should become. */
 function kindOf(schema: z.ZodTypeAny | undefined): string | undefined {
@@ -49,7 +49,7 @@ function routeFor(op: Op): ApiRoute {
         const body =
           op.http.method === 'GET' ? fromQuery(op, c.req.query() as Record<string, string>) : await c.req.json().catch(() => ({}))
         const input = op.input.parse({ ...body, ...params })
-        const result = await op.run(getDb(), principal, input)
+        const result = await runOp(op, principal, input)
         return c.json(result ?? { ok: true }, op.http.method === 'POST' ? 201 : 200)
       } catch (e) {
         const { status, body } = toErrorResponse(e)

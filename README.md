@@ -1,6 +1,6 @@
 # Client Desk
 
-Otaku Solutions' internal desk for retainer clients and their requests. It is API first: one Mastra server (Hono under the hood) on Supabase Postgres that Chowderr, his agents and each client's agent all talk to. The Retainer rules from the website are enforced by the server, so every caller gets the same answer.
+Otaku Solutions' internal desk for retainer clients and their requests. It is API first: one Mastra server (Hono under the hood) on Doltgres, version-controlled Postgres, that Chowderr, his agents and each client's agent all talk to. The Retainer rules from the website are enforced by the server, so every caller gets the same answer.
 
 | Surface | Where | Who |
 |---|---|---|
@@ -24,33 +24,43 @@ Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so 
 
 ## Set up
 
-1. Create a Supabase project. Copy the **session pooler** connection string (port 5432) and store it in Infisical as `DATABASE_URL`.
-2. Generate a bootstrap admin key (`openssl rand -hex 24`) and store it as `DESK_ADMIN_KEY`.
-3. Install and migrate:
+1. Run Doltgres (on Coolify, `docker-compose.yaml` brings its own) and point `DATABASE_URL` at it. Plain Postgres works too, without history.
+2. Point `MASTRA_DATABASE_URL` at plain Postgres (Supabase) for Mastra's own tables.
+3. Generate a bootstrap admin key (`openssl rand -hex 24`) and store it as `DESK_ADMIN_KEY`.
+4. Install and migrate:
    ```sh
    npm ci
    DATABASE_URL=... npm run db:migrate
    ```
-   Client Desk tables live in the `desk` schema; Mastra's own tables in `mastra`.
-4. Load your current retainer clients. Copy `clients.example.json`, fill it in, then:
+5. Load your current retainer clients. Copy `clients.example.json`, fill it in, then:
    ```sh
    DATABASE_URL=... npm run import -- clients.json
    ```
    Re-running skips clients that already exist.
-5. Mint keys (each is printed once; store it in Infisical):
+6. Mint keys (each is printed once; store it in Infisical):
    ```sh
    DATABASE_URL=... npm run key:create -- admin claude-code
    DATABASE_URL=... npm run key:create -- client GMA gma-telegram
    ```
 
+## History
+
+On Doltgres every change through the API or MCP is its own commit, authored by the caller (`owner`, `agent:<label>`, `client-agent:<label>`) and named after the action, e.g. `scope_request KBS-001`.
+
+- `history` lists the commits, newest first.
+- `history_diff` shows what a commit changed, row by row, before and after.
+- `restore` puts the whole desk back the way it was at a commit. The state it replaces is kept on a `before-restore-…` branch, so a restore can be undone.
+
+Doltgres 1.4 has no row locks, so transactions that must not overlap (taking a request number, starting work against the active limit) rewrite a `claim` column instead: Doltgres rejects the second of two transactions that change the same cell, and the server retries it. Desk tables sit in the `public` schema because Doltgres 1.4 breaks foreign keys in other schemas.
+
 ## Run
 
 ```sh
 npm run dev        # local, with Mastra Studio
-npm run build && DATABASE_URL=... npm start
+npm run build && DATABASE_URL=... MASTRA_DATABASE_URL=... npm start
 ```
 
-On Coolify, deploy the `Dockerfile` with `DATABASE_URL`, `DESK_ADMIN_KEY` and optionally `DESK_CAPACITY` set. The container runs migrations, then serves on port 4111.
+On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MASTRA_DATABASE_URL`, `DESK_ADMIN_KEY` and optionally `DESK_CAPACITY` set; Coolify generates the Doltgres password. The desk container runs migrations, then serves on port 4111. To move an existing desk from plain Postgres, set `COPY_FROM_DATABASE_URL` for one start: an empty desk copies every row across, ids and all.
 
 ## Use it from Claude
 
@@ -81,6 +91,7 @@ Ask for "the board" and the `show_board` tool renders the board inline in hosts 
 
 ```sh
 npm test                    # Retainer rules against an in-memory Postgres (PGlite)
+TEST_DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres npm test   # same on a Doltgres server, plus two-caller races
 npm run typecheck
 DESK_ADMIN=... DESK_CLIENT=... npm run test:mcp            # against a running server
 MCP_LEGACY=1 DESK_ADMIN=... DESK_CLIENT=... npm run test:mcp   # same, older protocol

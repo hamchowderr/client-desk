@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, max, min, sql } from 'drizzle-orm'
 import type { Db, DbOrTx } from '../db/client'
+import { isDolt } from '../db/dolt'
 import {
   clients,
   requests,
@@ -144,13 +145,15 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
   assertType(input.type)
   assertSize(input.sizeDays)
   if (!input.title?.trim()) throw new DeskError('invalid', 'A request needs a title')
+  const dolt = await isDolt(db)
   return db.transaction(async (tx) => {
     const isUuidRef = /^[0-9a-f-]{36}$/i.test(input.client)
-    const [client] = await tx
+    const q = tx
       .select()
       .from(clients)
       .where(isUuidRef ? eq(clients.id, input.client) : eq(clients.code, input.client.trim().toUpperCase()))
-      .for('update')
+    const [client] = await (dolt ? q : q.for('update'))
+    if (client && dolt) await tx.update(clients).set({ claim: sql`gen_random_uuid()` }).where(eq(clients.id, client.id))
     if (!client) throw notFound('Client')
     assertCanSeeClient(p, client.id)
     const retainer = await loadOpenRetainer(tx, client.id)
@@ -242,18 +245,21 @@ export async function queueRequest(db: DbOrTx, p: Principal, ref: string, opts: 
 
 /**
  * Start a queued request. Enforces the retainer's active limit inside a
- * transaction that locks the retainer row, so two starts can't both slip in.
+ * transaction that locks (or, on Doltgres, claims) the retainer row, so two
+ * starts can't both slip in.
  */
 export async function startRequest(db: Db, p: Principal, ref: string, now = new Date()) {
   requireAdmin(p)
+  const dolt = await isDolt(db)
   return db.transaction(async (tx) => {
     const { request: r, client } = await resolveRequest(tx, p, ref)
     assertStatus(r, ['queued'], 'start')
-    const [retainer] = await tx
+    const q = tx
       .select()
       .from(retainers)
       .where(and(eq(retainers.clientId, client.id), sql`${retainers.status} <> 'ended'`))
-      .for('update')
+    const [retainer] = await (dolt ? q : q.for('update'))
+    if (retainer && dolt) await tx.update(retainers).set({ claim: sql`gen_random_uuid()` }).where(eq(retainers.id, retainer.id))
     if (!retainer) throw ruleBroken(`${client.name} has no open retainer`)
     if (retainer.status === 'onboarding') {
       throw ruleBroken('A kickoff call starts every retainer. Log the kickoff before starting work.')
@@ -384,10 +390,13 @@ export async function splitRequest(
     assertType(x.type)
     assertSize(x.sizeDays)
   })
+  const dolt = await isDolt(db)
   return db.transaction(async (tx) => {
     const { request: parent, client } = await resolveRequest(tx, p, ref)
     assertStatus(parent, ['new', 'scoping', 'queued', 'waiting_on_client'], 'split')
-    const [locked] = await tx.select().from(clients).where(eq(clients.id, client.id)).for('update')
+    const q = tx.select().from(clients).where(eq(clients.id, client.id))
+    const [locked] = await (dolt ? q : q.for('update'))
+    if (dolt) await tx.update(clients).set({ claim: sql`gen_random_uuid()` }).where(eq(clients.id, client.id))
     let seq = locked.requestSeq
     let pos = parent.status === 'queued' && parent.position != null ? parent.position : await nextPosition(tx, client.id)
     if (parent.status === 'queued') {
