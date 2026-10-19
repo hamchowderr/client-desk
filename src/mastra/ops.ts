@@ -10,6 +10,7 @@ import {
   updateClient,
 } from '../domain/clients'
 import { digest } from '../domain/digest'
+import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
 import type { Principal } from '../domain/principal'
 import {
@@ -51,6 +52,8 @@ export type Op<I extends z.ZodTypeAny = z.ZodTypeAny> = {
   run: (db: Db, p: Principal, input: z.infer<I>) => Promise<unknown>
   /** HTTP mapping. Path params are merged into the input. */
   http: { method: 'GET' | 'POST' | 'PATCH'; path: string }
+  /** 'manual' for operations that manage Doltgres history themselves. */
+  versioning?: 'manual'
 }
 
 const op = <I extends z.ZodTypeAny>(o: Op<I>) => o
@@ -377,6 +380,33 @@ export const adminOps = [
     }),
     run: (db, p, { request, ...rest }) => addUpdate(db, p, request, rest),
     http: { method: 'POST', path: '/desk/requests/:request/updates' },
+  }),
+  op({
+    id: 'history',
+    description: 'Every change to the desk, newest first: commit, who made it, when, and what it was.',
+    audience: 'admin',
+    input: z.object({ limit: z.number().int().min(1).max(500).optional() }),
+    run: (db, p, i) => listHistory(db, p, i.limit),
+    http: { method: 'GET', path: '/desk/history' },
+  }),
+  op({
+    id: 'history_diff',
+    description:
+      'What a commit changed, row by row with before and after values. Pass `to` to diff everything between two commits.',
+    audience: 'admin',
+    input: z.object({ commit: z.string().describe('Commit hash from history'), to: z.string().optional() }),
+    run: (db, p, i) => diffHistory(db, p, i),
+    http: { method: 'GET', path: '/desk/history/:commit/diff' },
+  }),
+  op({
+    id: 'restore',
+    description:
+      'Roll the whole desk back to a commit. The current state is kept on a branch first, so this can be undone. Confirm with Chowderr before using.',
+    audience: 'admin',
+    input: z.object({ commit: z.string().describe('Commit hash from history') }),
+    run: (db, p, i) => restoreTo(db, p, i.commit),
+    http: { method: 'POST', path: '/desk/history/:commit/restore' },
+    versioning: 'manual',
   }),
 ] as const
 

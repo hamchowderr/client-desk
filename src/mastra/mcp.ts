@@ -10,6 +10,7 @@ import { digest } from '../domain/digest'
 import skills from '../skills.generated'
 import { principalFrom } from './principal'
 import { type Op, adminOps, clientOps } from './ops'
+import { runOp } from './run'
 
 const BOARD_URI = 'ui://desk/board'
 
@@ -21,7 +22,7 @@ export function toolFor(op: Op) {
     inputSchema: op.input,
     execute: async (input, context) => {
       const principal = principalFrom(context?.requestContext)
-      return op.run(getDb(), principal, input)
+      return runOp(op, principal, input)
     },
   })
 }

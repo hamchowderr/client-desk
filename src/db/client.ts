@@ -5,7 +5,7 @@ import postgres from 'postgres'
 import * as schema from './schema'
 
 export type Schema = typeof schema
-/** Any Drizzle Postgres database over the desk schema (postgres-js in prod, PGlite in tests). */
+/** Any Drizzle Postgres database over the desk tables (postgres-js in prod, PGlite in tests). */
 export type Db = PgDatabase<PgQueryResultHKT, Schema>
 export type Tx = PgTransaction<PgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>
 export type DbOrTx = Db | Tx
@@ -13,8 +13,8 @@ export type DbOrTx = Db | Tx
 let cached: Db | undefined
 
 /**
- * The app's database. DATABASE_URL is the Supabase connection string; with the
- * transaction pooler (port 6543) prepared statements must be off.
+ * The desk's database. DATABASE_URL points at Doltgres in production (any
+ * Postgres works, without history); prepared statements stay off so poolers work.
  */
 export function getDb(): Db {
   if (cached) return cached

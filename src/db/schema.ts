@@ -4,7 +4,7 @@ import {
   check,
   index,
   integer,
-  pgSchema,
+  pgTable,
   text,
   timestamp,
   uniqueIndex,
@@ -12,10 +12,10 @@ import {
 } from 'drizzle-orm/pg-core'
 
 /**
- * Desk tables live in their own Postgres schema so they never mix with Mastra's
- * storage tables or Supabase's `public` schema (which PostgREST exposes).
+ * Desk tables live in the default schema of their own Doltgres database, so every
+ * change is versioned. (Doltgres 1.4 breaks foreign keys in non-public schemas.)
  */
-export const desk = pgSchema('desk')
+const desk = { table: pgTable }
 
 export const REQUEST_TYPES = ['build', 'fix', 'decision', 'working_session'] as const
 export type RequestType = (typeof REQUEST_TYPES)[number]
@@ -55,6 +55,11 @@ export const clients = desk.table('clients', {
   notes: text('notes'),
   /** Last request number handed out for this client. */
   requestSeq: integer('request_seq').notNull().default(0),
+  /**
+   * Rewritten with a fresh value by transactions that must not overlap (Doltgres
+   * has no row locks, but rejects two transactions that change the same cell).
+   */
+  claim: uuid('claim'),
   createdAt: createdAt(),
 })
 
@@ -97,6 +102,11 @@ export const retainers = desk.table(
     cancelAt: timestamp('cancel_at', { withTimezone: true }),
     /** Stripe subscription id, FluentCart order id, etc. */
     billingRef: text('billing_ref'),
+    /**
+     * Rewritten with a fresh value by transactions that must not overlap (Doltgres
+     * has no row locks, but rejects two transactions that change the same cell).
+     */
+    claim: uuid('claim'),
     createdAt: createdAt(),
   },
   (t) => [
