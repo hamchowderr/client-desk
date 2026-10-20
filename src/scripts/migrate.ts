@@ -4,6 +4,7 @@
 // One-off move: with COPY_FROM_DATABASE_URL set (the old Supabase database, desk
 // tables in its `desk` schema) and an empty desk, every row is copied across,
 // ids and all, and committed as one change.
+import { readFileSync } from 'node:fs'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
@@ -22,8 +23,20 @@ for (let attempt = 1; ; attempt++) {
     await new Promise((r) => setTimeout(r, 2000))
   }
 }
-await migrate(drizzle(sql), { migrationsFolder: 'drizzle' })
-console.log('migrations applied')
+// Skip drizzle entirely when every migration is already applied: on Doltgres its
+// CREATE TABLE IF NOT EXISTS still adds a fresh sequence, which would put an empty
+// "migrate" entry in the history on every deploy.
+const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8')) as { entries: unknown[] }
+const applied = await sql`select count(*)::int as n from drizzle.__drizzle_migrations`.then(
+  ([r]) => r.n as number,
+  () => 0,
+)
+if (applied >= journal.entries.length) {
+  console.log('migrations up to date')
+} else {
+  await migrate(drizzle(sql), { migrationsFolder: 'drizzle' })
+  console.log('migrations applied')
+}
 
 const dolt = await sql`select dolt_version()`.then(
   () => true,

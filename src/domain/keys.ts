@@ -3,7 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { DbOrTx } from '../db/client'
 import { apiKeys, clients } from '../db/schema'
 import { DeskError, notFound } from './errors'
-import type { Principal } from './principal'
+import { type Principal, requireAdmin } from './principal'
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')
 
@@ -34,6 +34,50 @@ export async function createApiKey(
 
 export async function revokeApiKey(db: DbOrTx, id: string) {
   await db.update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, id))
+}
+
+/** Mint a key over the API (admin only). The key is in the response once and never again. */
+export async function mintApiKey(
+  db: DbOrTx,
+  p: Principal,
+  input: { label: string; scope: 'admin' | 'client'; client?: string },
+) {
+  requireAdmin(p)
+  if (input.scope === 'client') {
+    if (!input.client) throw new DeskError('invalid', 'A client key needs the client code')
+    return createApiKey(db, { label: input.label, scope: 'client', client: input.client })
+  }
+  return createApiKey(db, { label: input.label, scope: 'admin' })
+}
+
+/** Every key's label, scope, client and last use; never the key or its hash. */
+export async function listApiKeys(db: DbOrTx, p: Principal) {
+  requireAdmin(p)
+  return db
+    .select({
+      id: apiKeys.id,
+      label: apiKeys.label,
+      scope: apiKeys.scope,
+      client: clients.code,
+      prefix: apiKeys.prefix,
+      lastUsedAt: apiKeys.lastUsedAt,
+      revokedAt: apiKeys.revokedAt,
+      createdAt: apiKeys.createdAt,
+    })
+    .from(apiKeys)
+    .leftJoin(clients, eq(apiKeys.clientId, clients.id))
+    .orderBy(apiKeys.createdAt)
+}
+
+export async function revokeKey(db: DbOrTx, p: Principal, id: string) {
+  requireAdmin(p)
+  const [row] = await db
+    .update(apiKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(apiKeys.id, id), isNull(apiKeys.revokedAt)))
+    .returning({ id: apiKeys.id, label: apiKeys.label })
+  if (!row) throw notFound('Active key')
+  return { revoked: row.id, label: row.label }
 }
 
 /**
