@@ -3,7 +3,7 @@ import type { Db } from '../src/db/client'
 import { getClientOverview } from '../src/domain/clients'
 import { digest } from '../src/domain/digest'
 import { DeskError } from '../src/domain/errors'
-import { createApiKey, principalForKey } from '../src/domain/keys'
+import { createApiKey, listApiKeys, mintApiKey, principalForKey, revokeKey } from '../src/domain/keys'
 import { OWNER } from '../src/domain/principal'
 import {
   addUpdate,
@@ -193,5 +193,21 @@ describe('client scope', () => {
     expect(await principalForKey(db, admin.key)).toMatchObject({ kind: 'admin' })
     expect(await principalForKey(db, client.key)).toMatchObject({ kind: 'client' })
     expect(await principalForKey(db, 'desk_admin_nope')).toBeNull()
+  })
+
+  it('the owner mints, lists and revokes keys over the API; clients cannot', async () => {
+    const { asClient } = await seedClient(db)
+    const minted = await mintApiKey(db, OWNER, { label: 'gma-agent', scope: 'client', client: 'GMA' })
+    expect(await principalForKey(db, minted.key)).toMatchObject({ kind: 'client' })
+    await expect(mintApiKey(db, OWNER, { label: 'x', scope: 'client' })).rejects.toMatchObject({ code: 'invalid' })
+    await expect(mintApiKey(db, asClient, { label: 'x', scope: 'admin' })).rejects.toMatchObject({ code: 'forbidden' })
+
+    const listed = await listApiKeys(db, OWNER)
+    expect(listed).toEqual([expect.objectContaining({ id: minted.id, client: 'GMA', revokedAt: null })])
+    expect(JSON.stringify(listed)).not.toContain(minted.key)
+
+    await revokeKey(db, OWNER, minted.id)
+    expect(await principalForKey(db, minted.key)).toBeNull()
+    await expect(revokeKey(db, OWNER, minted.id)).rejects.toMatchObject({ code: 'not_found' })
   })
 })

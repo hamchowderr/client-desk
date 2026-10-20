@@ -12,6 +12,7 @@ import {
 import { digest } from '../domain/digest'
 import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
+import { listApiKeys, mintApiKey, revokeKey } from '../domain/keys'
 import type { Principal } from '../domain/principal'
 import {
   addUpdate,
@@ -407,6 +408,35 @@ export const adminOps = [
     run: (db, p, i) => restoreTo(db, p, i.commit),
     http: { method: 'POST', path: '/desk/history/:commit/restore' },
     versioning: 'manual',
+  }),
+  op({
+    id: 'create_key',
+    description:
+      'Create an API key: admin, or client-scoped for one client’s team or agent. The key is returned once; store it in Infisical straight away.',
+    audience: 'admin',
+    input: z.object({
+      label: z.string().min(1).describe('Who or what uses it, e.g. "rachel-telegram"'),
+      scope: z.enum(['admin', 'client']),
+      client: clientRef.optional().describe('Required for client keys'),
+    }),
+    run: (db, p, i) => mintApiKey(db, p, i),
+    http: { method: 'POST', path: '/desk/keys' },
+  }),
+  op({
+    id: 'list_keys',
+    description: 'Every API key with its label, scope, client and last use. Never shows the keys themselves.',
+    audience: 'admin',
+    input: z.object({}),
+    run: (db, p) => listApiKeys(db, p),
+    http: { method: 'GET', path: '/desk/keys' },
+  }),
+  op({
+    id: 'revoke_key',
+    description: 'Revoke an API key by its id from list_keys. It stops working immediately.',
+    audience: 'admin',
+    input: z.object({ key: z.string().describe('Key id from list_keys') }),
+    run: (db, p, i) => revokeKey(db, p, i.key),
+    http: { method: 'POST', path: '/desk/keys/:key/revoke' },
   }),
 ] as const
 

@@ -42,6 +42,7 @@ Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so 
    DATABASE_URL=... npm run key:create -- admin claude-code
    DATABASE_URL=... npm run key:create -- client GMA gma-telegram
    ```
+   On the live desk, use the admin API instead: `POST /desk/keys` with `{"label": "gma-telegram", "scope": "client", "client": "GMA"}` returns the key once. `GET /desk/keys` lists keys (never the keys themselves) and `POST /desk/keys/:id/revoke` turns one off. The same actions are MCP tools (`create_key`, `list_keys`, `revoke_key`).
 
 ## History
 
