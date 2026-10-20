@@ -107,11 +107,18 @@ Stripe tells the desk when an invoice is paid, so the next charge date moves on 
 
 A paid invoice finds its retainer by the Stripe customer or subscription id (`link_billing`), or, the first time, by the invoice email matching one of the client's contacts; that match saves the customer id for next time. A payment within 10 days of the next charge (or after it) moves the charge on a month. An earlier payment, an invoice that matches no client, and any other event are logged and change nothing. Redelivered events are ignored. Every payment is listed by `billing_history`, and on Doltgres each one is a commit authored by `stripe`.
 
+## CRM
+
+The desk mirrors its clients into FluentCRM on the hub. Each contact with an email gets the tags `Desk client`, their client code (e.g. `Desk: KBS`) and the retainer's state (`Desk: Active`, `Paused`, `Onboarding`, `Cancelling` or `Ended`; one at a time). New contacts are added as transactional, not as a marketing opt-in, and an existing contact keeps its status.
+
+It syncs after any change to a client, contact or retainer, and every six hours for changes that come with the calendar (a paused month starting). `sync_crm` runs it on demand. Set `FLUENTCRM_AUTH` to `username:application password` for a hub user who can manage FluentCRM contacts (and `FLUENTCRM_URL` for a site other than the hub); without it the desk skips the CRM.
+
 ## Layout
 
 ```
 src/db/          Drizzle schema and connection
-src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing
+src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing, crm
+src/crm/         CRM adapters (FluentCRM)
 src/mastra/      Mastra server: auth, REST routes, MCP servers (one ops list feeds both)
 src/apps/        MCP Apps views (board)
 plugin/          Claude Code plugin: MCP config and Chowderr's skills
@@ -121,5 +128,5 @@ drizzle/         SQL migrations
 
 ## Next phases
 
-- **Phase 2**: billing in (Stripe done; FluentCart next if a client pays there), CRM out (FluentCRM first; HighLevel and others behind the same adapter; none is fine).
+- **Phase 2**: billing in (Stripe done; FluentCart next if a client pays there), CRM out (FluentCRM done; HighLevel and others fit the same adapter; none is fine).
 - **Phase 3**: per-client channel agents (Telegram, Slack in the client's own workspace) and a client portal for clients without a channel.

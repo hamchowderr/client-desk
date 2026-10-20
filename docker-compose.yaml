@@ -11,6 +11,7 @@ services:
       - DESK_ADMIN_KEY=${DESK_ADMIN_KEY}
       - DESK_CAPACITY=${DESK_CAPACITY:-8}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - FLUENTCRM_AUTH=${FLUENTCRM_AUTH:-}
       # One-off: copy the desk from the old Supabase database on first start.
       - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
     depends_on:

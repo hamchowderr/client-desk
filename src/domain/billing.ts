@@ -7,6 +7,8 @@ import { type Principal, requireAdmin } from './principal'
 import { requireOpenRetainer } from './retainers'
 import { chargeDateFor, monthKey, shiftMonth } from './time'
 
+const STRIPE_REF = /^(cus|sub)_[A-Za-z0-9]+$/
+
 /** How long before the next charge date a payment still counts as that charge. */
 export const EARLY_PAYMENT_DAYS = 10
 /** Stripe's own default tolerance for a signed webhook's timestamp. */
@@ -73,7 +75,9 @@ async function retainerForInvoice(db: DbOrTx, inv: StripeInvoice): Promise<Retai
   const distinct = [...new Map(matches.map((m) => [m.retainer.id, m.retainer])).values()]
   if (distinct.length !== 1) return null
   const r = distinct[0]!
-  if (!r.billingRef && inv.customer) {
+  // Save the customer id unless the retainer already points at a Stripe record
+  // (an import may have left a note like "Stripe invoice" there).
+  if (inv.customer && !STRIPE_REF.test(r.billingRef ?? '')) {
     await db.update(retainers).set({ billingRef: inv.customer }).where(eq(retainers.id, r.id))
   }
   return r
@@ -127,7 +131,7 @@ async function applyInTx(db: DbOrTx, event: StripeEvent): Promise<StripeOutcome>
 /** Point a retainer at its billing record: a Stripe customer (cus_) or subscription (sub_) id. */
 export async function linkBilling(db: DbOrTx, p: Principal, clientRef: string, ref: string) {
   requireAdmin(p)
-  if (!/^(cus|sub)_[A-Za-z0-9]+$/.test(ref)) throw new DeskError('invalid', 'Use a Stripe customer (cus_…) or subscription (sub_…) id')
+  if (!STRIPE_REF.test(ref)) throw new DeskError('invalid', 'Use a Stripe customer (cus_…) or subscription (sub_…) id')
   const r = await requireOpenRetainer(db, p, clientRef)
   const [row] = await db.update(retainers).set({ billingRef: ref }).where(eq(retainers.id, r.id)).returning()
   return { billingRef: row!.billingRef }

@@ -1,5 +1,9 @@
 import { Mastra } from '@mastra/core'
 import { PostgresStore } from '@mastra/pg'
+import { crmFromEnv } from '../crm'
+import { getDb } from '../db/client'
+import { syncCrm } from '../domain/crm'
+import { OWNER } from '../domain/principal'
 import { DeskKeyAuth } from './auth/key-auth'
 import { clientMcp, deskMcp } from './mcp'
 import { deskRoutes } from './routes'
@@ -29,3 +33,12 @@ export const mastra = new Mastra({
     build: { openAPIDocs: true, swaggerUI: true },
   },
 })
+
+// Retainer states also change with the calendar (a paused month starting, a
+// cancellation running out), so the CRM is re-synced a few times a day too.
+const CRM_RESYNC_MS = 6 * 60 * 60 * 1000
+if (crmFromEnv() && process.env.DATABASE_URL) {
+  setInterval(() => {
+    syncCrm(getDb(), OWNER, crmFromEnv()).catch((e) => console.error('crm resync failed', e))
+  }, CRM_RESYNC_MS).unref()
+}
