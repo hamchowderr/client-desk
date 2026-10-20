@@ -1,0 +1,36 @@
+[
+  {
+    "code": "ACME",
+    "name": "Acme Co",
+    "company": "Acme Co",
+    "timezone": "America/Chicago",
+    "vaultNote": "2. Areas/Business/Otaku Solutions/Clients/Acme Co/notes.md",
+    "retainer": {
+      "monthlyRateCents": 54900,
+      "nextChargeAt": "2026-11-01T15:00:00Z",
+      "startedAt": "2026-08-01T15:00:00Z",
+      "billingRef": "sub_123"
+    },
+    "contacts": [{ "name": "Jane Doe", "email": "jane@acme.test", "role": "owner" }],
+    "channels": [{ "kind": "telegram", "externalId": "-1001234567890" }],
+    "requests": [
+      {
+        "title": "Lead form to CRM sync",
+        "type": "fix",
+        "trigger": "Website form submitted",
+        "result": "Lead appears in CRM with source tag",
+        "sizeDays": 2,
+        "state": "active"
+      },
+      {
+        "title": "Weekly pipeline report",
+        "type": "build",
+        "trigger": "Every Monday 8am",
+        "result": "Report emailed to sales lead",
+        "sizeDays": 3,
+        "state": "queued"
+      },
+      { "title": "Should we move off Zapier?", "state": "intake" }
+    ]
+  }
+]

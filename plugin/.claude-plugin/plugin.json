@@ -1,0 +1,6 @@
+{
+  "name": "client-desk",
+  "version": "0.1.0",
+  "description": "Client Desk for Claude Code: retainer clients, requests and queues, with the intake, status and delivery skills.",
+  "author": { "name": "Otaku Solutions" }
+}

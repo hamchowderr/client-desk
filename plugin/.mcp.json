@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "client-desk": {
+      "type": "http",
+      "url": "${DESK_URL:-https://desk.otakusolutions.io}/api/mcp/desk/mcp",
+      "headers": { "Authorization": "Bearer ${DESK_API_KEY}" }
+    }
+  }
+}

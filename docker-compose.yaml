@@ -1,0 +1,30 @@
+# Client Desk on Coolify: the desk server plus its own Doltgres database.
+# Coolify generates SERVICE_PASSWORD_DOLTGRES and routes desk.otakusolutions.io
+# to the desk service. Doltgres is only reachable inside this stack.
+services:
+  desk:
+    build: .
+    environment:
+      - SERVICE_FQDN_DESK_4111
+      - DATABASE_URL=postgresql://postgres:${SERVICE_PASSWORD_DOLTGRES}@doltgres:5432/postgres
+      - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL}
+      - DESK_ADMIN_KEY=${DESK_ADMIN_KEY}
+      - DESK_CAPACITY=${DESK_CAPACITY:-8}
+      # One-off: copy the desk from the old Supabase database on first start.
+      - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
+    depends_on:
+      - doltgres
+    restart: unless-stopped
+
+  doltgres:
+    # Doltgres 1.4.0, pinned by digest (Docker Hub only publishes :latest).
+    image: dolthub/doltgresql@sha256:3a119bb6726a0be283cfda2a73fa9fbdff58df06c0b850f245cd1828f57281a6
+    environment:
+      - DOLTGRES_USER=postgres
+      - DOLTGRES_PASSWORD=${SERVICE_PASSWORD_DOLTGRES}
+    volumes:
+      - doltgres-data:/var/lib/doltgres
+    restart: unless-stopped
+
+volumes:
+  doltgres-data:
