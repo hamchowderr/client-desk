@@ -15,8 +15,16 @@ export type DeskUser = {
 export class DeskKeyAuth extends MastraAuthProvider<DeskUser> {
   constructor() {
     super({ name: 'desk-keys' })
-    // The Stripe webhook proves itself with its signature instead of a key.
-    this.registerOptions({ public: ['/health', ['/health', 'GET'], ['/desk/webhooks/stripe', 'POST']] })
+    // Webhooks prove themselves instead of using a key: Stripe with its
+    // signature, chat platforms with their own verification (Teams: a Microsoft JWT).
+    this.registerOptions({
+      public: [
+        '/health',
+        ['/health', 'GET'],
+        ['/desk/webhooks/stripe', 'POST'],
+        ['/api/agents/client-agent/channels/*', 'POST'],
+      ],
+    })
   }
 
   async authenticateToken(token: string, _request: MastraAuthRequest): Promise<DeskUser | null> {

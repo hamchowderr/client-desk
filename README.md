@@ -113,13 +113,28 @@ The desk mirrors its clients into FluentCRM on the hub. Each contact with an ema
 
 It syncs after any change to a client, contact or retainer, and every six hours for changes that come with the calendar (a paused month starting). `sync_crm` runs it on demand. Set `FLUENTCRM_AUTH` to `username:application password` for a hub user who can manage FluentCRM contacts (and `FLUENTCRM_URL` for a site other than the hub); without it the desk skips the CRM.
 
+## Client agent
+
+One agent works in each client's own chat. Every chat platform plugs into the same agent as a channel (Microsoft Teams today; Slack, email and others are another adapter, using [Chat SDK](https://chat-sdk.dev/adapters) adapters through Mastra channels).
+
+Before each message runs, the desk checks who sent it. The sender must be a linked client contact, and the run then acts as that client, so the agent only ever sees and does what that client's own key could. Its playbook is `skills/client-agent`. A contact links their chat account one of two ways:
+
+- **Automatically**, when the platform shares their email and exactly one contact has it.
+- **With a code**: `invite_contact` returns a one-time code (valid 7 days); they send `link <code>` to the agent. `unlink_contact` disconnects them.
+
+Anyone else gets a short "ask Chowderr for a link code" reply, and the agent doesn't run.
+
+Webhook: `https://desk.otakusolutions.io/api/agents/client-agent/channels/<platform>/webhook`. Each platform verifies its own requests there (Teams with a Microsoft-signed token).
+
+Settings: `ANTHROPIC_API_KEY` (and optionally `DESK_AGENT_MODEL`) for the model. Teams needs `TEAMS_APP_ID` and `TEAMS_APP_PASSWORD` from an Azure Bot registered as multi-tenant, since clients use their own Microsoft tenant, with its messaging endpoint set to the webhook above. A channel without settings stays off.
+
 ## Layout
 
 ```
 src/db/          Drizzle schema and connection
 src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing, crm
 src/crm/         CRM adapters (FluentCRM)
-src/mastra/      Mastra server: auth, REST routes, MCP servers (one ops list feeds both)
+src/mastra/      Mastra server: auth, REST routes, MCP servers (one ops list feeds both), client agent
 src/apps/        MCP Apps views (board)
 plugin/          Claude Code plugin: MCP config and Chowderr's skills
 skills/          Skills served only to client agents
@@ -129,4 +144,4 @@ drizzle/         SQL migrations
 ## Next phases
 
 - **Phase 2**: billing in (Stripe done; FluentCart next if a client pays there), CRM out (FluentCRM done; HighLevel and others fit the same adapter; none is fine).
-- **Phase 3**: per-client channel agents (Telegram, Slack in the client's own workspace) and a client portal for clients without a channel.
+- **Phase 3**: the client agent (Teams done; more channels plug in the same way) and a client portal for clients without a channel.

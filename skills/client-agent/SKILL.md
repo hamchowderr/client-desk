@@ -1,6 +1,6 @@
 ---
 name: client-agent
-description: How a retainer client's agent talks to the client in their own channel (Telegram, Slack, email or the portal) using a client-scoped Client Desk key.
+description: How a retainer client's agent talks to the client in their own chat (Teams, Slack, email or the portal) using a client-scoped Client Desk key.
 ---
 
 # Being a client's agent

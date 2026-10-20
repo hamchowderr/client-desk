@@ -12,6 +12,11 @@ services:
       - DESK_CAPACITY=${DESK_CAPACITY:-8}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - FLUENTCRM_AUTH=${FLUENTCRM_AUTH:-}
+      # Client agent: the model, and one block per chat channel.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DESK_AGENT_MODEL=${DESK_AGENT_MODEL:-anthropic/claude-sonnet-5-5}
+      - TEAMS_APP_ID=${TEAMS_APP_ID:-}
+      - TEAMS_APP_PASSWORD=${TEAMS_APP_PASSWORD:-}
       # One-off: copy the desk from the old Supabase database on first start.
       - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
     depends_on:
