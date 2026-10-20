@@ -126,7 +126,7 @@ Anyone else gets a short "ask Chowderr for a link code" reply, and the agent doe
 
 Webhook: `https://desk.otakusolutions.io/api/agents/client-agent/channels/<platform>/webhook`. Each platform verifies its own requests there (Teams with a Microsoft-signed token).
 
-Settings: `ANTHROPIC_API_KEY` (and optionally `DESK_AGENT_MODEL`) for the model. Teams needs `TEAMS_APP_ID` and `TEAMS_APP_PASSWORD` from an Azure Bot registered as multi-tenant, since clients use their own Microsoft tenant, with its messaging endpoint set to the webhook above. A channel without settings stays off.
+Settings: `ANTHROPIC_API_KEY` (and optionally `DESK_AGENT_MODEL`) for the model. Teams needs `TEAMS_APP_ID`, `TEAMS_APP_PASSWORD` and `TEAMS_APP_TENANT_ID` from an Azure Bot the client creates in their own Azure (single tenant), with its messaging endpoint set to the webhook above. A channel without settings stays off.
 
 ## Layout
 

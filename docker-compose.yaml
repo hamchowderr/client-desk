@@ -17,6 +17,7 @@ services:
       - DESK_AGENT_MODEL=${DESK_AGENT_MODEL:-anthropic/claude-sonnet-5-5}
       - TEAMS_APP_ID=${TEAMS_APP_ID:-}
       - TEAMS_APP_PASSWORD=${TEAMS_APP_PASSWORD:-}
+      - TEAMS_APP_TENANT_ID=${TEAMS_APP_TENANT_ID:-}
       # One-off: copy the desk from the old Supabase database on first start.
       - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
     depends_on:
