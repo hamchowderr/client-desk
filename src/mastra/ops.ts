@@ -9,6 +9,7 @@ import {
   listClients,
   updateClient,
 } from '../domain/clients'
+import { billingHistory, linkBilling } from '../domain/billing'
 import { digest } from '../domain/digest'
 import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
@@ -191,6 +192,23 @@ export const adminOps = [
     input: z.object({ client: clientRef, nextChargeAt: z.coerce.date() }),
     run: (db, p, i) => setNextCharge(db, p, i.client, i.nextChargeAt),
     http: { method: 'POST', path: '/desk/clients/:client/retainer/next-charge' },
+  }),
+  op({
+    id: 'link_billing',
+    description:
+      'Link a retainer to its Stripe customer (cus_…) or subscription (sub_…), so paid invoices move its next charge on automatically. Usually not needed: the first paid invoice links itself when its email matches a client contact.',
+    audience: 'admin',
+    input: z.object({ client: clientRef, ref: z.string().describe('Stripe customer or subscription id') }),
+    run: (db, p, i) => linkBilling(db, p, i.client, i.ref),
+    http: { method: 'POST', path: '/desk/clients/:client/retainer/billing' },
+  }),
+  op({
+    id: 'billing_history',
+    description: 'Stripe payments the desk has seen for a client, newest first, with what each one did to the next charge date.',
+    audience: 'admin',
+    input: z.object({ client: clientRef }),
+    run: (db, p, i) => billingHistory(db, p, i.client),
+    http: { method: 'GET', path: '/desk/clients/:client/billing' },
   }),
   op({
     id: 'pause_month',

@@ -206,6 +206,27 @@ export const channels = desk.table(
   (t) => [uniqueIndex('channels_kind_external').on(t.kind, t.externalId)],
 )
 
+/**
+ * Payments seen from billing (Stripe webhooks today). The event id makes a
+ * redelivered webhook a no-op; `outcome` says what the desk did with it.
+ */
+export const billingEvents = desk.table(
+  'billing_events',
+  {
+    id: text('id').primaryKey(),
+    source: text('source').$type<'stripe'>().notNull(),
+    kind: text('kind').notNull(),
+    retainerId: uuid('retainer_id').references(() => retainers.id, { onDelete: 'set null' }),
+    invoiceId: text('invoice_id'),
+    amountCents: integer('amount_cents'),
+    currency: text('currency'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    outcome: text('outcome').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('billing_events_retainer_idx').on(t.retainerId, t.createdAt)],
+)
+
 export const apiKeys = desk.table('api_keys', {
   id: uuid('id').primaryKey().defaultRandom(),
   label: text('label').notNull(),
@@ -227,3 +248,4 @@ export type Request = typeof requests.$inferSelect
 export type Update = typeof updates.$inferSelect
 export type Channel = typeof channels.$inferSelect
 export type ApiKey = typeof apiKeys.$inferSelect
+export type BillingEvent = typeof billingEvents.$inferSelect

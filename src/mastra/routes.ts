@@ -1,6 +1,9 @@
 import { registerApiRoute } from '@mastra/core/server'
 import type { ApiRoute } from '@mastra/core/server'
 import { z } from 'zod'
+import { getDb } from '../db/client'
+import { commitVersion, isDolt, isWriteConflict } from '../db/dolt'
+import { applyStripeEvent, type StripeEvent, verifyStripeSignature } from '../domain/billing'
 import { DeskError } from '../domain/errors'
 import { principalFrom } from './principal'
 import { type Op, allOps } from './ops'
@@ -64,6 +67,42 @@ export const deskRoutes: ApiRoute[] = [
     method: 'GET',
     requiresAuth: false,
     handler: async (c) => c.json({ ok: true }),
+  }),
+  registerApiRoute('/desk/webhooks/stripe', {
+    method: 'POST',
+    requiresAuth: false,
+    openapi: { summary: 'stripe_webhook', description: 'Stripe events, signed with the endpoint secret.', tags: ['Billing'] },
+    handler: async (c) => {
+      const secret = process.env.STRIPE_WEBHOOK_SECRET
+      if (!secret) return c.json({ error: 'unavailable', message: 'Stripe webhook is not set up' }, 503)
+      const raw = await c.req.text()
+      if (!verifyStripeSignature(raw, c.req.header('stripe-signature'), secret)) {
+        return c.json({ error: 'invalid', message: 'Bad signature' }, 400)
+      }
+      try {
+        const event = JSON.parse(raw) as StripeEvent
+        const db = getDb()
+        // A redelivery racing the first delivery loses at commit; the retry sees it as a duplicate.
+        let result
+        for (let attempt = 1; ; attempt++) {
+          try {
+            result = await applyStripeEvent(db, event)
+            break
+          } catch (e) {
+            if (attempt >= 3 || !isWriteConflict(e)) throw e
+          }
+        }
+        if (result.outcome !== 'duplicate' && (await isDolt(db))) {
+          await commitVersion(db, `stripe ${event.type} ${event.id}: ${result.outcome}`, 'stripe').catch((e) =>
+            console.error('dolt commit failed', e),
+          )
+        }
+        return c.json(result)
+      } catch (e) {
+        const { status, body } = toErrorResponse(e)
+        return c.json(body, status as 400)
+      }
+    },
   }),
   ...allOps.map(routeFor),
 ]
