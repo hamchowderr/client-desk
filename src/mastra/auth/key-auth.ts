@@ -15,7 +15,8 @@ export type DeskUser = {
 export class DeskKeyAuth extends MastraAuthProvider<DeskUser> {
   constructor() {
     super({ name: 'desk-keys' })
-    this.registerOptions({ public: ['/health', ['/health', 'GET']] })
+    // The Stripe webhook proves itself with its signature instead of a key.
+    this.registerOptions({ public: ['/health', ['/health', 'GET'], ['/desk/webhooks/stripe', 'POST']] })
   }
 
   async authenticateToken(token: string, _request: MastraAuthRequest): Promise<DeskUser | null> {
