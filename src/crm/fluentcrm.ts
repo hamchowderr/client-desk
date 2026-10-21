@@ -42,21 +42,25 @@ export class FluentCrm implements CrmAdapter {
     }
   }
 
-  async syncContact(contact: CrmContact, tags: { attach: { slug: string; title: string }[]; detach: string[] }) {
+  /** The subscriber id for this email, adding them as transactional if FluentCRM doesn't have them. */
+  private async subscriberId(contact: CrmContact): Promise<number> {
     const search = await this.call<{ subscribers: { data: { id: number; email: string }[] } }>(
       'GET',
       `/subscribers?search=${encodeURIComponent(contact.email)}&per_page=10`,
     )
-    let id = search.subscribers.data.find((s) => s.email.toLowerCase() === contact.email.toLowerCase())?.id
-    if (!id) {
-      const created = await this.call<{ contact: { id: number } }>('POST', '/subscribers', {
-        email: contact.email,
-        first_name: contact.firstName,
-        last_name: contact.lastName,
-        status: 'transactional',
-      })
-      id = created.contact.id
-    }
+    const found = search.subscribers.data.find((s) => s.email.toLowerCase() === contact.email.toLowerCase())?.id
+    if (found) return found
+    const created = await this.call<{ contact: { id: number } }>('POST', '/subscribers', {
+      email: contact.email,
+      first_name: contact.firstName,
+      last_name: contact.lastName,
+      status: 'transactional',
+    })
+    return created.contact.id
+  }
+
+  async syncContact(contact: CrmContact, tags: { attach: { slug: string; title: string }[]; detach: string[] }) {
+    const id = await this.subscriberId(contact)
     await this.ensureTags(tags.attach)
     await this.call('POST', '/subscribers/sync-segments', {
       type: 'tags',
@@ -64,6 +68,14 @@ export class FluentCrm implements CrmAdapter {
       find_by: 'slug',
       attach: tags.attach.map((t) => t.slug),
       detach: tags.detach,
+    })
+  }
+
+  /** A one-off email through the hub's own mailer (FluentCRM's "send email to contact"), sent at once. */
+  async sendEmail(contact: CrmContact, email: { subject: string; html: string }) {
+    const id = await this.subscriberId(contact)
+    await this.call('POST', `/subscribers/${id}/emails/send`, {
+      campaign: { email_subject: email.subject, email_body: email.html },
     })
   }
 }

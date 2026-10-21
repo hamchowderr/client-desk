@@ -66,16 +66,17 @@ On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MAST
 
 ## Use it from Claude
 
-**Clients** add a custom connector in Claude with the address `https://desk.otakusolutions.io/mcp` and press Connect. A sign-in page opens with Continue with Microsoft and Continue with Google; the email they sign in with is matched to their contact on the desk, and they get their own client's tools. Nothing to paste. An email the desk doesn't know gets a page telling them to ask Otaku Solutions to add it.
+**Clients** add a custom connector in Claude with the address `https://desk.otakusolutions.io/mcp` and press Connect. A sign-in page asks for their email and emails them a 6-digit code (sent by FluentCRM on the hub, so it comes from the usual Otaku Solutions address). After the code, they allow Claude once and get their own client's tools. Nothing to paste, and no Microsoft or Google app to set up.
 
-How it works (`src/oauth/`): the desk is its own OAuth 2.1 authorization server for `/mcp`, as the MCP spec describes. It publishes protected-resource and authorization-server metadata, accepts Client ID Metadata Documents (what Claude uses) and dynamic registration, requires PKCE S256, and issues one-hour access tokens with 30-day refresh tokens. Registrations, sign-in state, codes and tokens are sealed (AES-GCM, key from `DESK_OAUTH_SECRET`, or derived from `DESK_ADMIN_KEY`) rather than stored, so nothing lands in the versioned desk data. Every token is checked against the contact on each use: remove a contact or change their email and their access stops. Emails in `DESK_OWNER_EMAILS` sign in to the admin tools instead. Desk keys keep working at `/mcp` and everywhere else.
+How it works (`src/auth/`): [Better Auth](https://www.better-auth.com) with its MCP plugin is the OAuth 2.1 server for `/mcp`. It handles discovery, Client ID Metadata Documents (what Claude uses), dynamic registration, PKCE, consent, and one-hour access tokens with refresh tokens. The email code is its email-OTP plugin. The desk adds the two pages (`/sign-in`, `/consent`) and the rules:
 
-One-time setup, both apps owned by Otaku Solutions:
+- Only emails the desk knows get a code or an account: a client contact's email, or one in `DESK_OWNER_EMAILS`, which signs in to the admin tools. The page never says whether an email is on file.
+- Every request re-checks the email against the contacts, so removing a contact or changing their email cuts off their access.
+- Better Auth's tables live in Mastra's Postgres (`MASTRA_DATABASE_URL`, schema `desk_auth`) and are created on start, so sign-ins stay out of the versioned desk data.
+- Its secret is `DESK_AUTH_SECRET`, or derived from `DESK_ADMIN_KEY` when unset (rotating the admin key then signs everyone out).
+- Codes need `FLUENTCRM_AUTH`. Desk keys keep working at `/mcp` and everywhere else.
 
-- **Microsoft**: Entra ID > App registrations > New, supported accounts "any organizational directory and personal Microsoft accounts", web redirect `https://desk.otakusolutions.io/oauth/callback/microsoft`. Under Token configuration add the optional ID-token claims `email` and `xms_edov` (the desk only trusts a Microsoft email when the tenant has verified its domain). Create a client secret. Env: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`.
-- **Google**: Google Cloud > APIs & Services > Credentials > OAuth client ID (Web application), redirect `https://desk.otakusolutions.io/oauth/callback/google`, consent screen External and published, scopes `openid email profile`. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-
-Only the configured buttons show. `npx tsx test/e2e/oauth-smoke.ts <email>` drives the flow with the MCP SDK's own OAuth client against a running server.
+`test/e2e/oauth-smoke.ts` drives the whole flow with the MCP SDK's own OAuth client against a running server, with `test/e2e/fake-fluentcrm.mjs` standing in for the hub.
 
 **Claude Code**: add this repo as a plugin marketplace and install `client-desk`. It brings the MCP server and the `desk-intake`, `desk-status` and `desk-delivery` skills. Set `DESK_API_KEY` (an admin key) and, if the server isn't at `https://desk.otakusolutions.io`, `DESK_URL`.
 

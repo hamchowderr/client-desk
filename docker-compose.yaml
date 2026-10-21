@@ -12,11 +12,7 @@ services:
       - DESK_CAPACITY=${DESK_CAPACITY:-8}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - FLUENTCRM_AUTH=${FLUENTCRM_AUTH:-}
-      # Sign-in for the /mcp connector; a button shows once its pair is set.
-      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID:-}
-      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      # Connector sign-in (codes are emailed through FluentCRM). Owner emails get the admin tools.
       - DESK_OWNER_EMAILS=${DESK_OWNER_EMAILS:-}
       # Client agent: the model, and one block per chat channel.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

@@ -16,6 +16,7 @@ function fakeCrm() {
     async syncContact(contact, tags) {
       calls.push({ contact, attach: tags.attach.map((t) => t.slug), detach: tags.detach })
     },
+    async sendEmail() {},
   }
   return { crm, calls }
 }

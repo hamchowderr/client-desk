@@ -7,15 +7,16 @@ import { OWNER } from '../domain/principal'
 import { clientAgent } from './agents/client-agent'
 import { DeskKeyAuth } from './auth/key-auth'
 import { clientMcp, deskMcp } from './mcp'
-import { mcpRoute } from '../oauth/mcp-route'
-import { oauthRoutes } from '../oauth/routes'
+import { migrateAuth } from '../auth'
+import { mcpRoute } from '../auth/mcp-route'
+import { authRoutes } from '../auth/routes'
 import { deskRoutes } from './routes'
 
 /**
  * Client Desk. One Mastra server (Hono under the hood) serves:
  * - REST under /desk/* (OpenAPI at /api/openapi.json)
- * - MCP at /mcp: sign in with Microsoft or Google (OAuth), and the email picks
- *   the client, or the owner's admin tools. Keys still work there and at
+ * - MCP at /mcp: sign in with an emailed code (Better Auth, src/auth), and the
+ *   email picks the client, or the owner's admin tools. Keys still work there and at
  *   /api/mcp/desk/mcp (admin) and /api/mcp/desk-client/mcp (client keys)
  * - the client agent, in each client's own chat (Teams first) at
  *   /api/agents/client-agent/channels/<platform>/webhook
@@ -36,7 +37,7 @@ export const mastra = new Mastra({
     port: Number(process.env.PORT ?? 4111),
     host: process.env.HOST ?? '0.0.0.0',
     auth: new DeskKeyAuth(),
-    apiRoutes: [...deskRoutes, ...oauthRoutes, mcpRoute],
+    apiRoutes: [...deskRoutes, ...authRoutes, mcpRoute],
     build: { openAPIDocs: true, swaggerUI: true },
   },
 })
@@ -48,4 +49,9 @@ if (crmFromEnv() && process.env.DATABASE_URL) {
   setInterval(() => {
     syncCrm(getDb(), OWNER, crmFromEnv()).catch((e) => console.error('crm resync failed', e))
   }, CRM_RESYNC_MS).unref()
+}
+
+// Sign-in keeps its tables in Mastra's Postgres; create them if they're missing.
+if (process.env.MASTRA_DATABASE_URL && process.env.NODE_ENV !== 'test') {
+  migrateAuth().catch((e) => console.error('sign-in tables migration failed', e))
 }

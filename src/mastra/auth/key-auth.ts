@@ -3,7 +3,8 @@ import type { MastraAuthRequest } from '@mastra/core/server'
 import { getDb } from '../../db/client'
 import type { DbOrTx } from '../../db/client'
 import { principalForKey } from '../../domain/keys'
-import { principalForAccessToken } from '../../oauth/identity'
+import { emailForAccessToken } from '../../auth'
+import { principalForEmail } from '../../auth/identity'
 import type { Principal } from '../../domain/principal'
 
 /** What Mastra stores as the request's `user`; MCP tools see it as authInfo.extra.user. */
@@ -13,12 +14,12 @@ export type DeskUser = {
   scopes: string[]
 }
 
-/** A desk API key or an OAuth access token from the desk's own sign-in, as the caller. */
+/** A desk API key or an OAuth access token from the desk's sign-in, as the caller. */
 export async function deskUserForToken(db: DbOrTx, token: string): Promise<(DeskUser & { clientId: string; expiresAt?: number }) | null> {
   if (!token) return null
   const keyed = await principalForKey(db, token)
-  const oauth = keyed ? null : await principalForAccessToken(db, token)
-  const principal = keyed ?? oauth?.principal
+  const oauth = keyed ? null : await emailForAccessToken(token)
+  const principal = keyed ?? (oauth && (await principalForEmail(db, oauth.email)))
   if (!principal) return null
   return {
     id: principal.kind === 'admin' ? `admin:${principal.label}` : `client:${principal.clientId}:${principal.label}`,
@@ -41,10 +42,12 @@ export class DeskKeyAuth extends MastraAuthProvider<DeskUser> {
         ['/health', 'GET'],
         ['/desk/webhooks/stripe', 'POST'],
         ['/api/agents/client-agent/channels/*', 'POST'],
-        // OAuth sign-in, and /mcp, which checks its own bearer so it can answer
-        // a missing one with where to sign in.
+        // Sign-in (Better Auth and its pages), and /mcp, which checks its own
+        // bearer so it can answer a missing one with where to sign in.
         '/.well-known/*',
-        '/oauth/*',
+        '/auth/*',
+        '/sign-in',
+        '/consent',
         '/mcp',
       ],
     })
