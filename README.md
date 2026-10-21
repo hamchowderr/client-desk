@@ -5,8 +5,9 @@ Otaku Solutions' internal desk for retainer clients and their requests. It is AP
 | Surface | Where | Who |
 |---|---|---|
 | REST | `/desk/*` (OpenAPI at `/api/openapi.json` with a key; Swagger UI at `/swagger-ui`) | scripts, webhooks, a future portal |
-| MCP, admin | `/api/mcp/desk/mcp` | Chowderr in Claude Code / Claude Desktop |
-| MCP, client | `/api/mcp/desk-client/mcp` | one client's agent in their Slack or Telegram |
+| MCP, one address | `/mcp`, with sign-in (OAuth) | clients adding the Otaku Solutions connector in Claude; Chowderr too |
+| MCP, admin | `/api/mcp/desk/mcp` (admin key) | Chowderr in Claude Code / Claude Desktop |
+| MCP, client | `/api/mcp/desk-client/mcp` (client key) | a client's own agent, by key |
 | Health | `/health` (no key) | Coolify |
 
 Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so current and older Claude clients connect.
@@ -64,6 +65,17 @@ npm run build && DATABASE_URL=... MASTRA_DATABASE_URL=... npm start
 On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MASTRA_DATABASE_URL`, `DESK_ADMIN_KEY` and optionally `DESK_CAPACITY` set; Coolify generates the Doltgres password. The desk container runs migrations, then serves on port 4111. To move an existing desk from plain Postgres, set `COPY_FROM_DATABASE_URL` for one start: an empty desk copies every row across, ids and all.
 
 ## Use it from Claude
+
+**Clients** add a custom connector in Claude with the address `https://desk.otakusolutions.io/mcp` and press Connect. A sign-in page opens with Continue with Microsoft and Continue with Google; the email they sign in with is matched to their contact on the desk, and they get their own client's tools. Nothing to paste. An email the desk doesn't know gets a page telling them to ask Otaku Solutions to add it.
+
+How it works (`src/oauth/`): the desk is its own OAuth 2.1 authorization server for `/mcp`, as the MCP spec describes. It publishes protected-resource and authorization-server metadata, accepts Client ID Metadata Documents (what Claude uses) and dynamic registration, requires PKCE S256, and issues one-hour access tokens with 30-day refresh tokens. Registrations, sign-in state, codes and tokens are sealed (AES-GCM, key from `DESK_OAUTH_SECRET`, or derived from `DESK_ADMIN_KEY`) rather than stored, so nothing lands in the versioned desk data. Every token is checked against the contact on each use: remove a contact or change their email and their access stops. Emails in `DESK_OWNER_EMAILS` sign in to the admin tools instead. Desk keys keep working at `/mcp` and everywhere else.
+
+One-time setup, both apps owned by Otaku Solutions:
+
+- **Microsoft**: Entra ID > App registrations > New, supported accounts "any organizational directory and personal Microsoft accounts", web redirect `https://desk.otakusolutions.io/oauth/callback/microsoft`. Under Token configuration add the optional ID-token claims `email` and `xms_edov` (the desk only trusts a Microsoft email when the tenant has verified its domain). Create a client secret. Env: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`.
+- **Google**: Google Cloud > APIs & Services > Credentials > OAuth client ID (Web application), redirect `https://desk.otakusolutions.io/oauth/callback/google`, consent screen External and published, scopes `openid email profile`. Env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+Only the configured buttons show. `npx tsx test/e2e/oauth-smoke.ts <email>` drives the flow with the MCP SDK's own OAuth client against a running server.
 
 **Claude Code**: add this repo as a plugin marketplace and install `client-desk`. It brings the MCP server and the `desk-intake`, `desk-status` and `desk-delivery` skills. Set `DESK_API_KEY` (an admin key) and, if the server isn't at `https://desk.otakusolutions.io`, `DESK_URL`.
 
