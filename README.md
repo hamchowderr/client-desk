@@ -5,8 +5,9 @@ Otaku Solutions' internal desk for retainer clients and their requests. It is AP
 | Surface | Where | Who |
 |---|---|---|
 | REST | `/desk/*` (OpenAPI at `/api/openapi.json` with a key; Swagger UI at `/swagger-ui`) | scripts, webhooks, a future portal |
-| MCP, admin | `/api/mcp/desk/mcp` | Chowderr in Claude Code / Claude Desktop |
-| MCP, client | `/api/mcp/desk-client/mcp` | one client's agent in their Slack or Telegram |
+| MCP, one address | `/mcp`, with sign-in (OAuth) | clients adding the Otaku Solutions connector in Claude; Chowderr too |
+| MCP, admin | `/api/mcp/desk/mcp` (admin key) | Chowderr in Claude Code / Claude Desktop |
+| MCP, client | `/api/mcp/desk-client/mcp` (client key) | a client's own agent, by key |
 | Health | `/health` (no key) | Coolify |
 
 Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so current and older Claude clients connect.
@@ -65,6 +66,18 @@ On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MAST
 
 ## Use it from Claude
 
+**Clients** add a custom connector in Claude with the address `https://desk.otakusolutions.io/mcp` and press Connect. A sign-in page asks for their email and emails them a 6-digit code (sent by FluentCRM on the hub, so it comes from the usual Otaku Solutions address). After the code, they allow Claude once and get their own client's tools. Nothing to paste, and no Microsoft or Google app to set up.
+
+How it works (`src/auth/`): [Better Auth](https://www.better-auth.com) with its MCP plugin is the OAuth 2.1 server for `/mcp`. It handles discovery, Client ID Metadata Documents (what Claude uses), dynamic registration, PKCE, consent, and one-hour access tokens with refresh tokens. The email code is its email-OTP plugin. The desk adds the two pages (`/sign-in`, `/consent`) and the rules:
+
+- Only emails the desk knows get a code or an account: a client contact's email, or one in `DESK_OWNER_EMAILS`, which signs in to the admin tools. The page never says whether an email is on file.
+- Every request re-checks the email against the contacts, so removing a contact or changing their email cuts off their access.
+- Better Auth's tables live in Mastra's Postgres (`MASTRA_DATABASE_URL`, schema `desk_auth`) and are created on start, so sign-ins stay out of the versioned desk data.
+- Its secret is `DESK_AUTH_SECRET`, or derived from `DESK_ADMIN_KEY` when unset (rotating the admin key then signs everyone out).
+- Codes need `FLUENTCRM_AUTH`. Desk keys keep working at `/mcp` and everywhere else.
+
+`test/e2e/oauth-smoke.ts` drives the whole flow with the MCP SDK's own OAuth client against a running server, with `test/e2e/fake-fluentcrm.mjs` standing in for the hub.
+
 **Claude Code**: add this repo as a plugin marketplace and install `client-desk`. It brings the MCP server and the `desk-intake`, `desk-status` and `desk-delivery` skills. Set `DESK_API_KEY` (an admin key) and, if the server isn't at `https://desk.otakusolutions.io`, `DESK_URL`.
 
 ```sh
@@ -107,11 +120,18 @@ Stripe tells the desk when an invoice is paid, so the next charge date moves on 
 
 A paid invoice finds its retainer by the Stripe customer or subscription id (`link_billing`), or, the first time, by the invoice email matching one of the client's contacts; that match saves the customer id for next time. A payment within 10 days of the next charge (or after it) moves the charge on a month. An earlier payment, an invoice that matches no client, and any other event are logged and change nothing. Redelivered events are ignored. Every payment is listed by `billing_history`, and on Doltgres each one is a commit authored by `stripe`.
 
+## CRM
+
+The desk mirrors its clients into FluentCRM on the hub. Each contact with an email gets the tags `Desk client`, their client code (e.g. `Desk: KBS`) and the retainer's state (`Desk: Active`, `Paused`, `Onboarding`, `Cancelling` or `Ended`; one at a time). New contacts are added as transactional, not as a marketing opt-in, and an existing contact keeps its status.
+
+It syncs after any change to a client, contact or retainer, and every six hours for changes that come with the calendar (a paused month starting). `sync_crm` runs it on demand. Set `FLUENTCRM_AUTH` to `username:application password` for a hub user who can manage FluentCRM contacts (and `FLUENTCRM_URL` for a site other than the hub); without it the desk skips the CRM.
+
 ## Layout
 
 ```
 src/db/          Drizzle schema and connection
-src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing
+src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing, crm
+src/crm/         CRM adapters (FluentCRM)
 src/mastra/      Mastra server: auth, REST routes, MCP servers (one ops list feeds both)
 src/apps/        MCP Apps views (board)
 plugin/          Claude Code plugin: MCP config and Chowderr's skills
@@ -121,5 +141,5 @@ drizzle/         SQL migrations
 
 ## Next phases
 
-- **Phase 2**: billing in (Stripe done; FluentCart next if a client pays there), CRM out (FluentCRM first; HighLevel and others behind the same adapter; none is fine).
+- **Phase 2**: billing in (Stripe done; FluentCart next if a client pays there), CRM out (FluentCRM done; HighLevel and others fit the same adapter; none is fine).
 - **Phase 3**: per-client channel agents (Telegram, Slack in the client's own workspace) and a client portal for clients without a channel.
