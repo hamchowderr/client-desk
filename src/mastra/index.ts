@@ -4,7 +4,6 @@ import { crmFromEnv } from '../crm'
 import { getDb } from '../db/client'
 import { syncCrm } from '../domain/crm'
 import { OWNER } from '../domain/principal'
-import { clientAgent } from './agents/client-agent'
 import { DeskKeyAuth } from './auth/key-auth'
 import { clientMcp, deskMcp } from './mcp'
 import { migrateAuth } from '../auth'
@@ -18,8 +17,6 @@ import { deskRoutes } from './routes'
  * - MCP at /mcp: sign in with an emailed code (Better Auth, src/auth), and the
  *   email picks the client, or the owner's admin tools. Keys still work there and at
  *   /api/mcp/desk/mcp (admin) and /api/mcp/desk-client/mcp (client keys)
- * - the client agent, in each client's own chat (Teams first) at
- *   /api/agents/client-agent/channels/<platform>/webhook
  */
 export const mastra = new Mastra({
   // Mastra's own tables (traces, threads, later agent memory) need no history, so
@@ -31,7 +28,6 @@ export const mastra = new Mastra({
       schemaName: 'mastra',
     }),
   }),
-  agents: { clientAgent },
   mcpServers: { desk: deskMcp, 'desk-client': clientMcp },
   server: {
     port: Number(process.env.PORT ?? 4111),

@@ -240,37 +240,6 @@ export const apiKeys = desk.table('api_keys', {
   createdAt: createdAt(),
 })
 
-/**
- * A contact's account on a chat platform (Teams, Slack, ...), so the client
- * agent knows who is talking. Linked by email match or a one-time link code.
- */
-export const chatIdentities = desk.table(
-  'chat_identities',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    contactId: uuid('contact_id')
-      .notNull()
-      .references(() => contacts.id, { onDelete: 'cascade' }),
-    /** Channel adapter name, e.g. 'teams'. */
-    platform: text('platform').notNull(),
-    /** The platform's user id for this person. */
-    externalId: text('external_id').notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex('chat_identities_platform_external').on(t.platform, t.externalId)],
-)
-
-/** One-time codes a contact sends the agent to link their chat account. Stored hashed. */
-export const linkCodes = desk.table('link_codes', {
-  hash: text('hash').primaryKey(),
-  contactId: uuid('contact_id')
-    .notNull()
-    .references(() => contacts.id, { onDelete: 'cascade' }),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  usedAt: timestamp('used_at', { withTimezone: true }),
-  createdAt: createdAt(),
-})
-
 export type Client = typeof clients.$inferSelect
 export type Contact = typeof contacts.$inferSelect
 export type Retainer = typeof retainers.$inferSelect
@@ -280,4 +249,3 @@ export type Update = typeof updates.$inferSelect
 export type Channel = typeof channels.$inferSelect
 export type ApiKey = typeof apiKeys.$inferSelect
 export type BillingEvent = typeof billingEvents.$inferSelect
-export type ChatIdentity = typeof chatIdentities.$inferSelect

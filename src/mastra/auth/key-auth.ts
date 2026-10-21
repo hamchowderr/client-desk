@@ -34,14 +34,12 @@ export async function deskUserForToken(db: DbOrTx, token: string): Promise<(Desk
 export class DeskKeyAuth extends MastraAuthProvider<DeskUser> {
   constructor() {
     super({ name: 'desk-keys' })
-    // Webhooks prove themselves instead of using a key: Stripe with its
-    // signature, chat platforms with their own verification (Teams: a Microsoft JWT).
+    // The Stripe webhook proves itself with its signature instead of a key.
     this.registerOptions({
       public: [
         '/health',
         ['/health', 'GET'],
         ['/desk/webhooks/stripe', 'POST'],
-        ['/api/agents/client-agent/channels/*', 'POST'],
         // Sign-in (Better Auth and its pages), and /mcp, which checks its own
         // bearer so it can answer a missing one with where to sign in.
         '/.well-known/*',

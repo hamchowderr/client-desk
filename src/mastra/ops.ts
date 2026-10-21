@@ -14,7 +14,6 @@ import { billingHistory, linkBilling } from '../domain/billing'
 import { crmFromEnv } from '../crm'
 import { syncCrm } from '../domain/crm'
 import { digest } from '../domain/digest'
-import { inviteContact, unlinkContact } from '../domain/identities'
 import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
 import { listApiKeys, mintApiKey, revokeKey } from '../domain/keys'
@@ -146,23 +145,6 @@ export const adminOps = [
     }),
     run: (db, p, { client, ...rest }) => addContact(db, p, client, rest),
     http: { method: 'POST', path: '/desk/clients/:client/contacts' },
-  }),
-  op({
-    id: 'invite_contact',
-    description:
-      "Get a one-time code for a client contact to link their chat account (Teams, and other channels later) to the client agent. Send them the code; they message it to the agent. Valid 7 days. A contact whose email the platform shares is linked automatically.",
-    audience: 'admin',
-    input: z.object({ client: clientRef, contact: z.string().describe('Contact email or id') }),
-    run: (db, p, i) => inviteContact(db, p, i.client, i.contact),
-    http: { method: 'POST', path: '/desk/clients/:client/contacts/invite' },
-  }),
-  op({
-    id: 'unlink_contact',
-    description: "Disconnect a contact's chat accounts from the client agent, e.g. when they leave the client's team.",
-    audience: 'admin',
-    input: z.object({ client: clientRef, contact: z.string().describe('Contact id') }),
-    run: (db, p, i) => unlinkContact(db, p, i.client, i.contact),
-    http: { method: 'POST', path: '/desk/clients/:client/contacts/:contact/unlink' },
   }),
   op({
     id: 'link_channel',

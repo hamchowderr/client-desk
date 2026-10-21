@@ -14,12 +14,6 @@ services:
       - FLUENTCRM_AUTH=${FLUENTCRM_AUTH:-}
       # Connector sign-in (codes are emailed through FluentCRM). Owner emails get the admin tools.
       - DESK_OWNER_EMAILS=${DESK_OWNER_EMAILS:-}
-      # Client agent: the model, and one block per chat channel.
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - DESK_AGENT_MODEL=${DESK_AGENT_MODEL:-anthropic/claude-sonnet-5-5}
-      - TEAMS_APP_ID=${TEAMS_APP_ID:-}
-      - TEAMS_APP_PASSWORD=${TEAMS_APP_PASSWORD:-}
-      - TEAMS_APP_TENANT_ID=${TEAMS_APP_TENANT_ID:-}
       # One-off: copy the desk from the old Supabase database on first start.
       - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
     depends_on:
