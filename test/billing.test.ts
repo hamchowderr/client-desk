@@ -31,6 +31,9 @@ function paid(id: string, paidAt: string, invoice: Record<string, unknown> = {})
   }
 }
 
+/** What an import left behind: free text, not a Stripe id. */
+const linkBillingNote = (db: Db) => db.update(retainers).set({ billingRef: 'Stripe invoice' })
+
 const nextCharge = async (db: Db) => (await db.select().from(retainers))[0]!.currentPeriodEnd.toISOString()
 
 describe('stripe signature', () => {
@@ -71,6 +74,13 @@ describe('stripe payments', () => {
     const next = await applyStripeEvent(db, paid('evt_2', '2026-12-15T12:01:00Z', { customer_email: 'billing@other.example' }))
     expect(next.outcome).toBe('advanced')
     expect(await nextCharge(db)).toBe('2027-01-15T12:00:00.000Z')
+  })
+
+  it('an email match replaces a billing note that is not a Stripe id', async () => {
+    await linkBillingNote(db)
+    await addContact(db, OWNER, 'EA', { name: 'Owner', email: 'owner@ea.example', role: 'owner' })
+    await applyStripeEvent(db, paid('evt_1', '2026-11-15T12:05:00Z'))
+    expect((await billingHistory(db, OWNER, 'EA')).billingRef).toBe('cus_EA1')
   })
 
   it('a redelivered event changes nothing', async () => {

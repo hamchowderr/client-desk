@@ -2,7 +2,7 @@ import { createTool } from '@mastra/core/tools'
 import { MCPServer } from '@mastra/mcp'
 import type { MCPServerResources } from '@mastra/mcp'
 import { toNodeHandler } from '@modelcontextprotocol/node'
-import { createMcpHandler } from '@modelcontextprotocol/server'
+import { type AuthInfo, createMcpHandler } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import boardHtml from '../apps/board.generated'
 import { getDb } from '../db/client'
@@ -112,3 +112,14 @@ export const clientMcp = serveLegacyToo(new MCPServer({
   tools: tools(clientOps),
   resources: skillResources(['client-agent']),
 }))
+
+/**
+ * Serve one HTTP request on a server as an already-authenticated caller. The
+ * short /mcp address uses this to pick the admin or the client server by who
+ * signed in.
+ */
+export function serveMcp(server: MCPServer, request: Request, authInfo: AuthInfo): Promise<Response> {
+  const self = server as any
+  self.getNodeHandler()
+  return self.httpHandler.fetch(request, { authInfo })
+}

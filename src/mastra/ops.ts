@@ -5,11 +5,14 @@ import {
   addChannel,
   addContact,
   createClient,
+  resolveClient,
   getClientOverview,
   listClients,
   updateClient,
 } from '../domain/clients'
 import { billingHistory, linkBilling } from '../domain/billing'
+import { crmFromEnv } from '../crm'
+import { syncCrm } from '../domain/crm'
 import { digest } from '../domain/digest'
 import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
@@ -209,6 +212,15 @@ export const adminOps = [
     input: z.object({ client: clientRef }),
     run: (db, p, i) => billingHistory(db, p, i.client),
     http: { method: 'GET', path: '/desk/clients/:client/billing' },
+  }),
+  op({
+    id: 'sync_crm',
+    description:
+      'Push clients into the CRM (FluentCRM) now: each contact tagged Desk client, their client code and the retainer state. One client, or all. Changes sync on their own; this is for a backfill or a check.',
+    audience: 'admin',
+    input: z.object({ client: clientRef.optional() }),
+    run: async (db, p, i) => syncCrm(db, p, crmFromEnv(), i.client ? (await resolveClient(db, p, i.client)).id : undefined),
+    http: { method: 'POST', path: '/desk/crm/sync' },
   }),
   op({
     id: 'pause_month',
