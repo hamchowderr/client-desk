@@ -188,6 +188,43 @@ export async function pauseMonth(
   return { retainerId: r.id, month, alreadyPaused: false, skipsChargeOn: charge }
 }
 
+/** How many months ahead the pause calendar shows. */
+export const PAUSE_PLAN_MONTHS = 6
+
+/**
+ * The next few billing months, each with its charge date and whether it can be
+ * paused now (the same rules as pauseMonth), for the pause calendar.
+ */
+export async function pausePlan(db: DbOrTx, p: Principal, clientRef: string, now = new Date()) {
+  const r = await requireOpenRetainer(db, p, clientRef)
+  const paused = new Set((await listPauses(db, r.id)).map((x) => x.month))
+  const runWith = (month: string) => {
+    const all = new Set([...paused, month])
+    let run = 1
+    for (let m = shiftMonth(month, -1); all.has(m); m = shiftMonth(m, -1)) run++
+    for (let m = shiftMonth(month, 1); all.has(m); m = shiftMonth(m, 1)) run++
+    return run
+  }
+  const first = billingMonthAt(now, r.currentPeriodEnd)
+  const months = Array.from({ length: PAUSE_PLAN_MONTHS }, (_, i) => {
+    const month = shiftMonth(first, i + 1)
+    const chargeOn = chargeDateFor(month, r.currentPeriodEnd)
+    const isPaused = paused.has(month)
+    let blockedBecause: string | null = null
+    if (r.status === 'cancelling') blockedBecause = 'The retainer is ending'
+    else if (r.cancelAt && chargeOn >= r.cancelAt) blockedBecause = 'After the retainer ends'
+    else if (chargeOn <= now) blockedBecause = 'Already charged'
+    else if (!isPaused && runWith(month) > MAX_CONSECUTIVE_PAUSED_MONTHS)
+      blockedBecause = `More than ${MAX_CONSECUTIVE_PAUSED_MONTHS} months in a row`
+    return { month, chargeOn, paused: isPaused, canPause: !isPaused && !blockedBecause, blockedBecause }
+  })
+  return {
+    retainer: await describeRetainer(db, r, now),
+    maxInARow: MAX_CONSECUTIVE_PAUSED_MONTHS,
+    months,
+  }
+}
+
 export async function unpauseMonth(db: DbOrTx, p: Principal, clientRef: string, month: string, now = new Date()) {
   const r = await requireOpenRetainer(db, p, clientRef)
   if (chargeDateFor(month, r.currentPeriodEnd) <= now) {

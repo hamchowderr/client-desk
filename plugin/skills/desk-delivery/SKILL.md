@@ -11,4 +11,4 @@ description: Deliver a finished retainer request, close it, or handle feedback, 
 3. If they want changes to what was delivered, `reopen_request` with the reason. It goes to the front of their queue, so it runs next.
 4. If the change is really new work (a new trigger or a new result), log it as a new request instead (see desk-intake).
 
-After delivering, say which request started next, if any, so Chowderr knows what he's on.
+After delivering, say which request started next, if any, so Chowderr knows what's next.

@@ -1,6 +1,6 @@
 # Client Desk
 
-Otaku Solutions' internal desk for retainer clients and their requests. It is API first: one Mastra server (Hono under the hood) on Doltgres, version-controlled Postgres, that Chowderr, his agents and each client's agent all talk to. The Retainer rules from the website are enforced by the server, so every caller gets the same answer.
+Otaku Solutions' internal desk for retainer clients and their requests. It is API first: one Mastra server (Hono under the hood) on Doltgres, version-controlled Postgres, that Chowderr, Chowderr's agents and each client's agent all talk to. The Retainer rules from the website are enforced by the server, so every caller gets the same answer.
 
 | Surface | Where | Who |
 |---|---|---|
@@ -99,7 +99,7 @@ How it works (`src/auth/`): [Better Auth](https://www.better-auth.com) with its 
 }
 ```
 
-Ask for "the board" and the `show_board` tool renders the board inline in hosts that support MCP Apps; other hosts get the same data as text. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
+In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk's tools open interactive screens in the chat instead of plain text. Clients see a request card that fills in while Claude drafts it and sends with one press, a tracker for each request (stage, progress, what they'll get, Approve or Ask for changes), their work at a glance with a full-screen view, and a calendar for pausing a month. Chowderr gets a command center (`show_board`): reply deadlines that warm up as they close in, capacity, and every client's lanes with Start next, Mark done and queue reordering. Whatever is pressed on a screen is passed back to Claude. Other hosts get the same data as text. The first time a screen opens, Claude asks the person to allow it. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
 
 ## Test
 
@@ -133,7 +133,7 @@ src/db/          Drizzle schema and connection
 src/domain/      Retainer rules: clients, retainers, requests, digest, keys, billing, crm
 src/crm/         CRM adapters (FluentCRM)
 src/mastra/      Mastra server: auth, REST routes, MCP servers (one ops list feeds both)
-src/apps/        MCP Apps views (board)
+src/apps/        MCP Apps screens: one view (desk.html + desk.ts) that draws per tool from views/
 plugin/          Claude Code plugin: MCP config and Chowderr's skills
 skills/          Skills served only to client agents
 drizzle/         SQL migrations
