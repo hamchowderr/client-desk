@@ -14,6 +14,9 @@ import { billingHistory, linkBilling } from '../domain/billing'
 import { crmFromEnv } from '../crm'
 import { syncCrm } from '../domain/crm'
 import { digest } from '../domain/digest'
+import { emailClient, recapEmail } from '../domain/notify'
+import { weeklyRecap } from '../domain/recap'
+import { draftClientSetup, setupClient } from '../domain/setup'
 import { diffHistory, listHistory, restoreTo } from '../domain/history'
 import { DeskError } from '../domain/errors'
 import { listApiKeys, mintApiKey, revokeKey } from '../domain/keys'
@@ -156,6 +159,46 @@ export const adminOps = [
     http: { method: 'POST', path: '/desk/clients/:client/channels' },
   }),
   op({
+    id: 'new_client',
+    description:
+      'Open the new-client form, filled in with whatever Chowderr has said so far (name, code, contact, rate, first charge date). Saves nothing: Chowderr checks it and presses Create, which runs setup_client. Use this to add a client instead of separate calls.',
+    audience: 'admin',
+    input: z.object({
+      name: z.string().optional(),
+      code: z.string().optional().describe('2 to 6 letters; suggested from the name if left out'),
+      company: z.string().optional(),
+      timezone: z.string().optional().describe('IANA, e.g. America/Chicago'),
+      contactName: z.string().optional().describe('Main contact; they own the retainer'),
+      contactEmail: z.string().optional(),
+      monthlyRateCents: z.number().int().positive().optional().describe('e.g. 150000 for $1,500'),
+      activeLimit: z.number().int().min(1).max(10).optional(),
+      nextChargeAt: z.string().optional().describe('First charge date, YYYY-MM-DD'),
+      kickoffDone: z.boolean().optional(),
+    }),
+    run: (db, p, i) => draftClientSetup(db, p, i),
+    http: { method: 'POST', path: '/desk/clients/draft' },
+  }),
+  op({
+    id: 'setup_client',
+    description:
+      'Add a client in one step: the client, their main contact (retainer owner), the retainer, and the kickoff if it already happened. All or nothing. Normally pressed from the new_client form.',
+    audience: 'admin',
+    input: z.object({
+      name: z.string(),
+      code: z.string(),
+      company: z.string().optional(),
+      timezone: z.string(),
+      contactName: z.string(),
+      contactEmail: z.string(),
+      monthlyRateCents: z.number().int().positive(),
+      activeLimit: z.number().int().min(1).max(10),
+      nextChargeAt: z.string().describe('First charge date, YYYY-MM-DD'),
+      kickoffDone: z.boolean(),
+    }),
+    run: (db, p, i) => setupClient(db, p, i),
+    http: { method: 'POST', path: '/desk/clients/setup' },
+  }),
+  op({
     id: 'start_retainer',
     description:
       'Start a retainer for a client. Rate is locked at joining. Set kickoffDone for clients already working with you (imports).',
@@ -208,11 +251,35 @@ export const adminOps = [
   }),
   op({
     id: 'billing_history',
-    description: 'Stripe payments the desk has seen for a client, newest first, with what each one did to the next charge date.',
+    description: "A client's billing: plan, next charge, paused months, and every Stripe payment the desk has seen, newest first, with what each one did to the next charge date.",
     audience: 'admin',
     input: z.object({ client: clientRef }),
     run: (db, p, i) => billingHistory(db, p, i.client),
     http: { method: 'GET', path: '/desk/clients/:client/billing' },
+  }),
+  op({
+    id: 'weekly_recap',
+    description:
+      "One client's week: delivered in the last seven days, in progress, waiting on them, and up next. Chowderr can send it to the client from the screen (send_recap).",
+    audience: 'admin',
+    input: z.object({ client: clientRef }),
+    run: (db, p, i) => weeklyRecap(db, p, i.client),
+    http: { method: 'GET', path: '/desk/clients/:client/recap' },
+  }),
+  op({
+    id: 'send_recap',
+    description: "Email a client's weekly recap to their people. Only when Chowderr asks for it to be sent.",
+    audience: 'admin',
+    input: z.object({ client: clientRef }),
+    run: async (db, p, i) => {
+      const crm = crmFromEnv()
+      if (!crm) throw new DeskError('rule', 'Sending email needs the CRM (FLUENTCRM_AUTH) set up')
+      const recap = await weeklyRecap(db, p, i.client)
+      const client = await resolveClient(db, p, i.client)
+      const sentTo = await emailClient(db, crm, client.id, (first) => recapEmail(recap, first))
+      return { client: recap.client, sentTo }
+    },
+    http: { method: 'POST', path: '/desk/clients/:client/recap/send' },
   }),
   op({
     id: 'sync_crm',
@@ -519,6 +586,22 @@ export const clientOps = [
     input: z.object({ request: requestRef, body: z.string() }),
     run: (db, p, i) => addUpdate(db, clientOnly(p), i.request, { body: i.body }),
     http: { method: 'POST', path: '/desk/me/requests/:request/messages' },
+  }),
+  op({
+    id: 'my_billing',
+    description: 'This client’s plan, next charge date, paused months and past payments. For questions about money beyond that, Chowderr replies.',
+    audience: 'client',
+    input: z.object({}),
+    run: (db, p) => billingHistory(db, clientOnly(p), clientOnly(p).clientId),
+    http: { method: 'GET', path: '/desk/me/billing' },
+  }),
+  op({
+    id: 'my_week',
+    description: 'This client’s week: what was delivered in the last seven days, what’s in progress, what’s waiting on them, and what’s next.',
+    audience: 'client',
+    input: z.object({}),
+    run: (db, p) => weeklyRecap(db, clientOnly(p), clientOnly(p).clientId),
+    http: { method: 'GET', path: '/desk/me/week' },
   }),
   op({
     id: 'plan_pause',

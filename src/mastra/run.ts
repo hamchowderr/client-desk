@@ -3,6 +3,9 @@ import { getDb } from '../db/client'
 import { commitVersion, isDolt, isWriteConflict } from '../db/dolt'
 import { resolveClient } from '../domain/clients'
 import { syncClientToCrm } from '../domain/crm'
+import { clientEmailsOn, emailClient, type Notice, noticeEmail } from '../domain/notify'
+import { formatRequestId } from '../domain/refs'
+import { resolveRequest } from '../domain/requests'
 import { OWNER, type Principal, authorOf } from '../domain/principal'
 import type { Op } from './ops'
 
@@ -16,7 +19,35 @@ const ATTEMPTS = 3
 export async function runOp(op: Op, principal: Principal, input: any) {
   const result = await runVersioned(op, principal, input)
   if (CRM_OPS.has(op.id)) void mirrorToCrm(principal, input)
+  if (principal.kind === 'admin' && NOTICE_OPS.has(op.id)) void notifyClient(op.id, input)
   return result
+}
+
+/** Moves that need the client: something to review, a question, an update for them. */
+const NOTICE_OPS = new Set(['deliver_request', 'wait_on_client', 'add_update'])
+
+/** Best effort, after the change is saved: a mail outage never fails a desk action. */
+async function notifyClient(opId: string, input: Record<string, any>) {
+  const crm = crmFromEnv()
+  if (!crm || !clientEmailsOn()) return
+  try {
+    const notice = noticeFor(opId, input)
+    if (!notice) return
+    const db = getDb()
+    const { request, client } = await resolveRequest(db, OWNER, input.request)
+    const full = { ...notice, request: formatRequestId(client.code, request.number), title: request.title } as Notice
+    if (full.kind === 'review') full.deliverableUrl = request.deliverableUrl
+    await emailClient(db, crm, client.id, (first) => noticeEmail(full, first))
+  } catch (e) {
+    console.error('client email failed', e)
+  }
+}
+
+function noticeFor(opId: string, input: Record<string, any>) {
+  if (opId === 'deliver_request') return { kind: 'review' as const, note: String(input.note ?? '') }
+  if (opId === 'wait_on_client') return { kind: 'question' as const, question: String(input.question ?? '') }
+  if (opId === 'add_update' && input.visibility === 'client') return { kind: 'update' as const, body: String(input.body ?? '') }
+  return null
 }
 
 /** Actions that change who a client's people are or where their retainer stands. */
@@ -30,6 +61,7 @@ const CRM_OPS = new Set([
   'unpause_month',
   'cancel_retainer',
   'request_pause',
+  'setup_client',
 ])
 
 /** Best effort, after the change is saved: a CRM outage never fails a desk action. */

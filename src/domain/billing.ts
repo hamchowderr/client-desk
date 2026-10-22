@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { Db, DbOrTx } from '../db/client'
-import { billingEvents, contacts, retainers, type Retainer } from '../db/schema'
+import { billingEvents, clients, contacts, retainers, type Retainer } from '../db/schema'
 import { DeskError } from './errors'
 import { type Principal, requireAdmin } from './principal'
-import { requireOpenRetainer } from './retainers'
+import { describeRetainer, requireOpenRetainer } from './retainers'
 import { chargeDateFor, monthKey, shiftMonth } from './time'
 
 const STRIPE_REF = /^(cus|sub)_[A-Za-z0-9]+$/
@@ -137,23 +137,35 @@ export async function linkBilling(db: DbOrTx, p: Principal, clientRef: string, r
   return { billingRef: row!.billingRef }
 }
 
-/** Payments the desk has seen for a client, newest first. */
-export async function billingHistory(db: DbOrTx, p: Principal, clientRef: string) {
-  requireAdmin(p)
+/** What the client sees of a payment: only ones matched to their retainer. */
+const CLIENT_OUTCOMES = (outcome: string) => outcome === 'recorded' || outcome.startsWith('next charge')
+
+/**
+ * A retainer's billing: the plan, next charge, paused months and payments the
+ * desk has seen, newest first. Chowderr sees every event and the billing ref;
+ * a client sees their own payments.
+ */
+export async function billingHistory(db: DbOrTx, p: Principal, clientRef: string, now = new Date()) {
   const r = await requireOpenRetainer(db, p, clientRef)
+  const admin = p.kind === 'admin'
+  const [client] = await db.select().from(clients).where(eq(clients.id, r.clientId))
   const rows = await db
     .select()
     .from(billingEvents)
     .where(eq(billingEvents.retainerId, r.id))
     .orderBy(desc(billingEvents.createdAt))
   return {
-    billingRef: r.billingRef,
-    nextChargeAt: r.currentPeriodEnd,
-    payments: rows.map((e) => ({
-      invoice: e.invoiceId,
-      amount: e.amountCents == null ? null : { cents: e.amountCents, currency: e.currency },
-      paidAt: e.paidAt,
-      outcome: e.outcome,
-    })),
+    client: { code: client!.code, name: client!.name },
+    retainer: await describeRetainer(db, r, now),
+    ...(admin ? { billingRef: r.billingRef } : {}),
+    nextChargeAt: r.status === 'cancelling' ? null : r.currentPeriodEnd,
+    payments: rows
+      .filter((e) => admin || CLIENT_OUTCOMES(e.outcome))
+      .map((e) => ({
+        invoice: e.invoiceId,
+        amount: e.amountCents == null ? null : { cents: e.amountCents, currency: e.currency },
+        paidAt: e.paidAt,
+        ...(admin ? { outcome: e.outcome } : {}),
+      })),
   }
 }
