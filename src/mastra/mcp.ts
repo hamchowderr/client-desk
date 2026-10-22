@@ -17,7 +17,8 @@ import { runOp } from './run'
 /**
  * One MCP Apps view (src/apps/desk.ts) renders every desk tool that shows
  * something: a client's work, a request and its stages, a request being
- * drafted, the pause calendar, and Chowderr's command center. It picks what to
+ * drafted, the pause calendar, billing, the weekly recap, the new-client
+ * form, and Chowderr's command center. It picks what to
  * draw from the tool that opened it.
  */
 const APP_URI = 'ui://desk/app'
@@ -39,6 +40,13 @@ const APP_TOOLS = new Set([
   'submit_request',
   'plan_pause',
   'request_pause',
+  'new_client',
+  'setup_client',
+  'weekly_recap',
+  'send_recap',
+  'billing_history',
+  'my_billing',
+  'my_week',
 ])
 /** These return lists, which structuredContent can't hold; the app reads their JSON text. */
 const LIST_TOOLS = new Set(['list_requests', 'my_requests'])

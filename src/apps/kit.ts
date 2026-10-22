@@ -129,6 +129,8 @@ export const dayTime = (iso: string | Date | null | undefined) =>
   iso
     ? new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', ...tz() })
     : ''
+export const money = (cents: number, currency = 'usd') =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100)
 export const monthName = (ym: string, long = false) => {
   const [y, m] = ym.split('-').map(Number)
   return new Date(Date.UTC(y!, m! - 1, 15)).toLocaleDateString(undefined, { month: long ? 'long' : 'short', timeZone: 'UTC' })
