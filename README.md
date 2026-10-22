@@ -99,7 +99,11 @@ How it works (`src/auth/`): [Better Auth](https://www.better-auth.com) with its 
 }
 ```
 
-In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk's tools open interactive screens in the chat instead of plain text. Clients see a request card that fills in while Claude drafts it and sends with one press, a tracker for each request (stage, progress, what they'll get, Approve or Ask for changes), their work at a glance with a full-screen view, and a calendar for pausing a month. Chowderr gets a command center (`show_board`): reply deadlines that warm up as they close in, capacity, and every client's lanes with Start next, Mark done and queue reordering. Whatever is pressed on a screen is passed back to Claude. Other hosts get the same data as text. The first time a screen opens, Claude asks the person to allow it. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
+In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk's tools open interactive screens in the chat instead of plain text. Clients see a request card that fills in while Claude drafts it and sends with one press, a tracker for each request (stage, progress, what they'll get, Approve or Ask for changes), their work at a glance with a full-screen view, and a calendar for pausing a month. Chowderr gets a command center (`show_board`): reply deadlines that warm up as they close in, capacity, and every client's lanes with Start next, Mark done and queue reordering. Whatever is pressed on a screen is passed back to Claude. Clients also get their plan and payments (`my_billing`) and a weekly recap (`my_week`); Chowderr gets a new-client form (`new_client`, one press runs `setup_client`), each client's recap with a Send button (`weekly_recap`, `send_recap`) and billing (`billing_history`). Other hosts get the same data as text. The first time a screen opens, Claude asks the person to allow it. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
+
+## Client emails
+
+When Chowderr delivers a request, asks the client a question, or posts a client-visible update, the desk emails each of the client's contacts with an email address, through the hub's FluentCRM mailer (the same as sign-in codes). Each email has a link that opens Claude on that request. Set `DESK_CLIENT_EMAILS=off` to stop them; without `FLUENTCRM_AUTH` none are sent. A mail failure never fails the desk action.
 
 ## Test
 

@@ -76,6 +76,17 @@ describe('stripe payments', () => {
     expect(await nextCharge(db)).toBe('2027-01-15T12:00:00.000Z')
   })
 
+  it("a client sees their own payments, but not Stripe's ids or what the desk did with each", async () => {
+    const { asClient } = await seedClient(db, { code: 'ACA' })
+    await addContact(db, OWNER, 'ACA', { name: 'Jordan', email: 'jordan@aca.example', role: 'owner' })
+    await applyStripeEvent(db, paid('evt_k1', '2026-11-15T12:05:00Z', { customer: 'cus_ACA', customer_email: 'jordan@aca.example' }))
+    const mine = await billingHistory(db, asClient, 'ACA')
+    expect(mine.billingRef).toBeUndefined()
+    expect(mine.retainer.monthlyRate).toEqual({ cents: 54900, currency: 'usd' })
+    expect(mine.payments).toEqual([{ invoice: 'in_evt_k1', amount: { cents: 54900, currency: 'usd' }, paidAt: expect.any(Date) }])
+    await expect(billingHistory(db, asClient, 'EA')).rejects.toMatchObject({ code: 'not_found' })
+  })
+
   it('an email match replaces a billing note that is not a Stripe id', async () => {
     await linkBillingNote(db)
     await addContact(db, OWNER, 'EA', { name: 'Owner', email: 'owner@ea.example', role: 'owner' })

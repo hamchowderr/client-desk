@@ -63,7 +63,9 @@ const retainerPill = (r: Overview['retainer']) =>
         ? pill('Paused this month', 'warn')
         : r.status === 'cancelling'
           ? pill('Ending', 'bad')
-          : pill(r.status)
+          : r.status === 'onboarding'
+            ? pill('Waiting on kickoff', 'info')
+            : pill(r.status)
 
 function detail(id: string) {
   const r = opened.get(id)
