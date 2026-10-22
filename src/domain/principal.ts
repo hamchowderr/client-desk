@@ -1,7 +1,7 @@
 import { DeskError } from './errors'
 
 /**
- * Who is calling. Admin is Chowderr (and agents he runs with an admin key);
+ * Who is calling. Admin is Chowderr (and agents Chowderr runs with an admin key);
  * a client principal is a client's agent or portal, limited to one client.
  */
 export type Principal =

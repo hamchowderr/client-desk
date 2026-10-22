@@ -18,7 +18,7 @@ import {
   splitRequest,
   startRequest,
 } from '../src/domain/requests'
-import { cancelRetainer, describeRetainer, logKickoff, pauseMonth, setActiveLimit } from '../src/domain/retainers'
+import { cancelRetainer, describeRetainer, logKickoff, pauseMonth, pausePlan, setActiveLimit } from '../src/domain/retainers'
 import { replyDueAt } from '../src/domain/time'
 import { scoped, seedClient, testDb } from './helpers'
 
@@ -150,6 +150,22 @@ describe('pauses', () => {
     await pauseMonth(db, OWNER, 'GMA', '2026-12', now)
     await pauseMonth(db, OWNER, 'GMA', '2027-01', now)
     await expect(pauseMonth(db, OWNER, 'GMA', '2027-02', now)).rejects.toEqual(rule(/4 months paused in a row/))
+  })
+
+  it('the pause plan shows the next six months and which can still be paused', async () => {
+    const { asClient } = await seedClient(db)
+    await pauseMonth(db, OWNER, 'GMA', '2026-11', now)
+    await pauseMonth(db, OWNER, 'GMA', '2026-12', now)
+    await pauseMonth(db, OWNER, 'GMA', '2027-01', now)
+    const plan = await pausePlan(db, asClient, 'GMA', now)
+    expect(plan.months).toHaveLength(6)
+    expect(plan.months.slice(0, 4).map((m) => [m.month, m.paused, m.canPause])).toEqual([
+      ['2026-11', true, false],
+      ['2026-12', true, false],
+      ['2027-01', true, false],
+      ['2027-02', false, false],
+    ])
+    expect(plan.months[4]).toMatchObject({ month: '2027-03', canPause: true, blockedBecause: null })
   })
 
   it('must be asked before the charge that opens the month', async () => {

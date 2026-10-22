@@ -7,7 +7,7 @@ description: Report where retainer clients and their requests stand, from the Cl
 
 ## Across all clients
 
-Use `show_board` when the host can show it (Claude Desktop renders it as a board). Otherwise `digest`. Lead with what needs Chowderr:
+Use `show_board` when the host can show it (Claude renders it as an interactive command center). Otherwise `digest`. Lead with what needs Chowderr:
 
 1. **Replies overdue**, then **replies due today**. The Retainer page promises: sent before 10pm the client's time on a business day, the reply lands that day. Any client-visible move by Chowderr (scoping, queueing, a client-visible update) counts as the reply.
 2. Active work per client, and anything in review waiting on the client's OK.

@@ -39,6 +39,7 @@ import {
   cancelRetainer,
   logKickoff,
   pauseMonth,
+  pausePlan,
   setActiveLimit,
   setNextCharge,
   startRetainer,
@@ -498,7 +499,7 @@ export const clientOps = [
   op({
     id: 'submit_request',
     description:
-      'Submit a new request for this client. Ask the client what triggers it and what result they expect before submitting. It lands as new; Chowderr confirms scope and size.',
+      'Submit a new request for this client. Ask the client what triggers it and what result they expect before submitting. Where the host shows interactive screens, use draft_request instead and let the client press Submit. It lands as new; Chowderr confirms scope and size.',
     audience: 'client',
     input: z.object({
       title: z.string(),
@@ -518,6 +519,15 @@ export const clientOps = [
     input: z.object({ request: requestRef, body: z.string() }),
     run: (db, p, i) => addUpdate(db, clientOnly(p), i.request, { body: i.body }),
     http: { method: 'POST', path: '/desk/me/requests/:request/messages' },
+  }),
+  op({
+    id: 'plan_pause',
+    description:
+      'Show this client’s next six billing months with their charge dates, which are paused, and which can still be paused. Use it before request_pause so they can pick a month.',
+    audience: 'client',
+    input: z.object({}),
+    run: (db, p) => pausePlan(db, clientOnly(p), clientOnly(p).clientId),
+    http: { method: 'GET', path: '/desk/me/pause' },
   }),
   op({
     id: 'request_pause',
