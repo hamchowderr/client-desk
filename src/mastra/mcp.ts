@@ -8,6 +8,7 @@ import deskAppHtml from '../apps/desk.generated'
 import { getDb } from '../db/client'
 import { getClientOverview } from '../domain/clients'
 import { digest } from '../domain/digest'
+import { missingContext } from '../domain/requests'
 import { replyDueAt } from '../domain/time'
 import skills from '../skills.generated'
 import { principalFrom } from './principal'
@@ -86,12 +87,15 @@ const showBoard = createTool({
 const draftRequest = createTool({
   id: 'draft_request',
   description:
-    'Show the client a request card to check and send. Use this instead of submit_request: the card fills in as you write, and the client presses Submit on it. Nothing is saved until they do. Ask what starts it (trigger) and what they get back (result) first; if one is still missing, draft anyway and ask. Call it again with the changes if they want edits.',
+    'Show the client a request card to check and send. Use this instead of submit_request: the card fills in as you write, and the client presses Submit on it. Nothing is saved until they do. A request can only be sent once it says what starts it, what they get back, which tools or accounts it touches, and how it is done today; draft as soon as you have a title, then ask for whatever the card still lists as missing, one short question at a time, and draft again with each answer.',
   inputSchema: z.object({
     title: z.string().describe('Short, in their words'),
     type: z.enum(['build', 'fix', 'decision', 'working_session']).optional(),
-    trigger: z.string().optional().describe('What starts it'),
-    result: z.string().optional().describe('What they get back'),
+    trigger: z.string().optional().describe('What starts it: an event, a time, or a person doing something'),
+    result: z.string().optional().describe('What they get back when it works, concretely'),
+    systems: z.string().optional().describe('The tools, accounts and places it touches, e.g. their HighLevel, n8n, Google Drive'),
+    currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+    links: z.string().optional().describe('Examples, files or links that show what they mean (optional)'),
     submittedBy: z.string().optional().describe('Name of the person on the client side'),
   }),
   mcp: ui,
@@ -100,18 +104,33 @@ const draftRequest = createTool({
     const p = principalFrom(context?.requestContext)
     if (p.kind !== 'client') throw new Error('draft_request is for client sign-ins; use create_request')
     const { client } = await getClientOverview(getDb(), p, p.clientId)
-    const missing = [!input.trigger && 'trigger', !input.result && 'result'].filter(Boolean)
+    const missing = missingContext(input)
     return {
       draft: input,
       client: { code: client.code, name: client.name },
       replyByIfSentNow: replyDueAt(new Date(), client.timezone),
-      missing,
+      missing: missing.map((m) => m.field),
       note: missing.length
-        ? `Shown as a card. Before it can be sent, ask the client for the ${missing.join(' and ')}, then draft again.`
+        ? `Shown as a card. It can't be sent yet. Ask the client, one at a time: ${missing.map((m) => m.label).join('; ')}. Then draft again.`
         : 'Shown as a card with a Submit button. Wait for the client to press it; only call submit_request yourself if they ask you to send it and cannot see the card.',
     }
   },
 })
+
+/**
+ * How a client's Claude takes a request. Sent as the server's instructions, so
+ * it applies in any host, including ones that never read skill:// resources.
+ */
+const CLIENT_INSTRUCTIONS = `You act for one Otaku Solutions retainer client, talking with someone on their team. Chowderr (Otaku Solutions) does the work.
+
+Taking a request. A request only helps Chowderr if it has the full context, so never send a vague one. Before it goes, it must say:
+1. What starts it (the trigger): an event, a time, or a person doing something.
+2. What they get back when it works (the result), concretely.
+3. Which tools, accounts or places it touches (e.g. their HighLevel, n8n, Google Drive, website).
+4. How it's done today, or what goes wrong now.
+Links, files or examples help too. One request is one trigger and one result; if they describe several things, make several requests. Ask for missing pieces one short question at a time, in their words, and offer an example answer when they seem unsure. Use draft_request so they see the card fill in and press Submit themselves.
+
+Speak to them as "you" about their own work only. Never mention other clients or internal notes. Never promise sizes, dates or prices; Chowderr confirms scope. They can send as many requests as they like; a few run at once and the rest wait in their queue in order. Billing questions beyond my_billing go to Chowderr. When a screen reports they pressed something, it's done; confirm in a line and don't repeat it. More detail: skill://client-agent/SKILL.md.`
 
 /**
  * Skills served as resources under skill://, following the Skills over MCP
@@ -178,7 +197,7 @@ export const deskMcp = serveLegacyToo(new MCPServer({
   version: '0.1.0',
   description: 'Retainer clients, requests and queues for Otaku Solutions.',
   instructions:
-    'Client Desk tracks retainer clients and their requests. Requests are ids like GMA-012. Read the skill:// resources (desk-intake, desk-status, desk-delivery) before taking in, reporting on or delivering requests. The tools enforce the Retainer rules; when one refuses, explain the rule instead of working around it.',
+    'Client Desk tracks retainer clients and their requests. Requests are ids like GMA-012. A useful request says what starts it, what comes back, which tools or accounts it touches, and how it is done today; when logging or scoping one, fill those in or ask for them. Read the skill:// resources (desk-intake, desk-status, desk-delivery) before taking in, reporting on or delivering requests. The tools enforce the Retainer rules; when one refuses, explain the rule instead of working around it.',
   tools: { ...tools(adminOps), show_board: showBoard },
   resources: skillResources(['desk-intake', 'desk-status', 'desk-delivery']),
   appResources: { [APP_URI]: deskApp },
@@ -190,8 +209,7 @@ export const clientMcp = serveLegacyToo(new MCPServer({
   name: 'Client Desk (client)',
   version: '0.1.0',
   description: "One retainer client's requests and status with Otaku Solutions.",
-  instructions:
-    "You act for one Otaku Solutions retainer client. Read skill://client-agent/SKILL.md first. Never commit to sizes, dates or prices for Chowderr.",
+  instructions: CLIENT_INSTRUCTIONS,
   tools: { ...tools(clientOps), draft_request: draftRequest },
   resources: skillResources(['client-agent']),
   appResources: { [APP_URI]: deskApp },

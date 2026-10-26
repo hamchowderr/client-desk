@@ -24,6 +24,9 @@ export type Req = {
   type: string | null
   trigger: string | null
   result: string | null
+  systems?: string | null
+  currentWay?: string | null
+  links?: string | null
   status: string
   sizeDays: number | null
   needsCall?: boolean
@@ -126,6 +129,16 @@ export function renderRequest(r: Req, opts: { admin: boolean; banner?: string })
         r.result ? esc(r.result) : '<span class="muted">Not set yet</span>'
       }</div></div>
     </div>
+    ${(() => {
+      const box = (k: string, v: string) => `<div class="box"><div class="eyebrow">${esc(k)}</div><div>${esc(v)}</div></div>`
+      const pair = [
+        r.systems && box('Tools and accounts', r.systems),
+        r.currentWay && box('How it works today', r.currentWay),
+      ].filter(Boolean)
+      return `${pair.length ? `<div class="pair">${pair.join('')}</div>` : ''}${
+        r.links ? `<div style="margin-top:8px">${box('Links and examples', r.links)}</div>` : ''
+      }`
+    })()}
     ${
       replyOwed
         ? `<p class="small" style="margin-top:12px">${

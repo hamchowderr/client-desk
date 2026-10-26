@@ -15,6 +15,7 @@ Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so 
 ## What the rules mean in code
 
 - **Requests** get ids per client (`GMA-012`), move `new → scoping → queued → active → in_review → done`, and can wait on the client, be declined or be split.
+- **Sending** (by a client) needs the full context: what starts it, what they get back, which tools or accounts it touches, and how it's done today. Links are optional. Clients can send as many requests as they like.
 - **Queueing** needs a type (build, fix, decision, working session), one trigger, one result and a size of 2–5 business days. Bigger work is split; the parts take the parent's place in the queue.
 - **Active limit** is per retainer (default 1, up to 10). Starting past it is refused. Delivering one starts the next in the queue.
 - **Reply clock**: a client message received before 10pm in the client's time zone on a business day is due a reply that day; otherwise by the end of the next business day. Your first client-visible note stops the clock.
@@ -62,7 +63,7 @@ npm run dev        # local, with Mastra Studio
 npm run build && DATABASE_URL=... MASTRA_DATABASE_URL=... npm start
 ```
 
-On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MASTRA_DATABASE_URL`, `DESK_ADMIN_KEY` and optionally `DESK_CAPACITY` set; Coolify generates the Doltgres password. The desk container runs migrations, then serves on port 4111. To move an existing desk from plain Postgres, set `COPY_FROM_DATABASE_URL` for one start: an empty desk copies every row across, ids and all.
+On Coolify, deploy `docker-compose.yaml` (the desk plus its Doltgres) with `MASTRA_DATABASE_URL`, `DESK_ADMIN_KEY` set; Coolify generates the Doltgres password. The desk container runs migrations, then serves on port 4111. To move an existing desk from plain Postgres, set `COPY_FROM_DATABASE_URL` for one start: an empty desk copies every row across, ids and all.
 
 ## Use it from Claude
 
@@ -99,7 +100,7 @@ How it works (`src/auth/`): [Better Auth](https://www.better-auth.com) with its 
 }
 ```
 
-In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk's tools open interactive screens in the chat instead of plain text. Clients see a request card that fills in while Claude drafts it and sends with one press, a tracker for each request (stage, progress, what they'll get, Approve or Ask for changes), their work at a glance with a full-screen view, and a calendar for pausing a month. Chowderr gets a command center (`show_board`): reply deadlines that warm up as they close in, capacity, and every client's lanes with Start next, Mark done and queue reordering. Whatever is pressed on a screen is passed back to Claude. Clients also get their plan and payments (`my_billing`) and a weekly recap (`my_week`); Chowderr gets a new-client form (`new_client`, one press runs `setup_client`), each client's recap with a Send button (`weekly_recap`, `send_recap`) and billing (`billing_history`). Other hosts get the same data as text. The first time a screen opens, Claude asks the person to allow it. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
+In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk's tools open interactive screens in the chat instead of plain text. Clients see a request card that fills in while Claude drafts it and sends with one press, a tracker for each request (stage, progress, what they'll get, Approve or Ask for changes), their work at a glance with a full-screen view, and a calendar for pausing a month. Chowderr gets a command center (`show_board`): reply deadlines that warm up as they close in, and every client's lanes with Start next, Mark done and queue reordering. Whatever is pressed on a screen is passed back to Claude. Clients also get their plan and payments (`my_billing`) and a weekly recap (`my_week`); Chowderr gets a new-client form (`new_client`, one press runs `setup_client`), each client's recap with a Send button (`weekly_recap`, `send_recap`) and billing (`billing_history`). Other hosts get the same data as text. The first time a screen opens, Claude asks the person to allow it. The skills are also served as `skill://…/SKILL.md` resources, so any MCP client can read them.
 
 ## Client emails
 

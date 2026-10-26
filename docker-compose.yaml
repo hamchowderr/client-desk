@@ -9,7 +9,6 @@ services:
       - DATABASE_URL=postgresql://postgres:${SERVICE_PASSWORD_DOLTGRES}@doltgres:5432/postgres
       - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL}
       - DESK_ADMIN_KEY=${DESK_ADMIN_KEY}
-      - DESK_CAPACITY=${DESK_CAPACITY:-8}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - FLUENTCRM_AUTH=${FLUENTCRM_AUTH:-}
       # Connector sign-in (codes are emailed through FluentCRM). Owner emails get the admin tools.

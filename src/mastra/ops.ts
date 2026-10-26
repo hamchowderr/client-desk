@@ -82,7 +82,7 @@ export const adminOps = [
   op({
     id: 'digest',
     description:
-      "Today's view across all clients: replies owed (overdue first), active work, queues, what's waiting on clients, and spots taken.",
+      "Today's view across all clients: replies owed (overdue first), active work, queues and what's waiting on clients.",
     audience: 'admin',
     input: z.object({}),
     run: (db, p) => digest(db, p),
@@ -345,6 +345,9 @@ export const adminOps = [
       type: requestType.optional(),
       trigger: z.string().optional().describe('What starts it'),
       result: z.string().optional().describe('What comes back to the client'),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
       sizeDays: size.optional(),
       needsCall: z.boolean().optional(),
       source: z.string().optional().describe('Where it came from: telegram, slack, email, call, owner'),
@@ -355,7 +358,7 @@ export const adminOps = [
   }),
   op({
     id: 'scope_request',
-    description: 'Set or change a request’s title, type, trigger, result, size or needs-call flag.',
+    description: 'Set or change a request’s title, type, trigger, result, tools involved, how it’s done today, links, size or needs-call flag.',
     audience: 'admin',
     input: z.object({
       request: requestRef,
@@ -363,6 +366,9 @@ export const adminOps = [
       type: requestType.optional(),
       trigger: z.string().optional(),
       result: z.string().optional(),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
       sizeDays: size.optional(),
       needsCall: z.boolean().optional(),
     }),
@@ -566,13 +572,16 @@ export const clientOps = [
   op({
     id: 'submit_request',
     description:
-      'Submit a new request for this client. Ask the client what triggers it and what result they expect before submitting. Where the host shows interactive screens, use draft_request instead and let the client press Submit. It lands as new; Chowderr confirms scope and size.',
+      'Submit a new request for this client. It is refused until it says what starts it (trigger), what they get back (result), which tools or accounts it touches (systems) and how it’s done today (currentWay); ask for any that are missing, one short question at a time. Where the host shows interactive screens, use draft_request instead and let the client press Submit. It lands as new; Chowderr confirms scope and size.',
     audience: 'client',
     input: z.object({
       title: z.string(),
       type: requestType.optional(),
       trigger: z.string().optional(),
       result: z.string().optional(),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
       source: z.string().optional().describe('telegram, slack, email or portal'),
       submittedBy: z.string().optional().describe('Name of the person on the client side'),
     }),

@@ -28,7 +28,7 @@ function route(data: any) {
     return
   }
   if (Array.isArray(data)) return renderList(data, { admin })
-  if ('spots' in data && 'clients' in data) return renderCommand(data)
+  if ('repliesDue' in data && 'clients' in data) return renderCommand(data)
   if ('setup' in data && 'missing' in data) return renderSetup(data)
   if ('payments' in data && 'retainer' in data) return renderBilling(data, { admin })
   if ('shipped' in data && 'upNext' in data) return renderRecap(data, { admin })
@@ -79,7 +79,7 @@ app.ontoolresult = (result) => {
   redraw = () => route(lastData)
   route(lastData)
   // Only the newest command center stays live; it carries the server's time.
-  const at = (lastData as any)?.spots ? Date.parse((lastData as any).at) : NaN
+  const at = (lastData as any)?.repliesDue ? Date.parse((lastData as any).at) : NaN
   if (Number.isFinite(at)) supersede('board', at, () => redraw?.())
 }
 

@@ -55,6 +55,9 @@ export function presentRequest(client: Pick<Client, 'code'>, r: Request) {
     type: r.type,
     trigger: r.trigger,
     result: r.result,
+    systems: r.systems,
+    currentWay: r.currentWay,
+    links: r.links,
     status: r.status,
     position: r.position,
     sizeDays: r.sizeDays,
@@ -123,12 +126,30 @@ function assertSize(size: number | undefined | null) {
   }
 }
 
+/**
+ * What a client's request must say before it's sent, so Chowderr can act on it
+ * without a round of questions. In plain words, for the client and their Claude.
+ */
+export const REQUEST_CONTEXT = [
+  ['trigger', 'what starts it'],
+  ['result', 'what they get back when it works'],
+  ['systems', 'which tools, accounts or places it touches'],
+  ['currentWay', "how it's done today, or what goes wrong now"],
+] as const
+
+export function missingContext(input: Partial<Record<(typeof REQUEST_CONTEXT)[number][0], string | null | undefined>>) {
+  return REQUEST_CONTEXT.filter(([k]) => !input[k]?.trim()).map(([k, label]) => ({ field: k, label }))
+}
+
 export type NewRequest = {
   client: string
   title: string
   type?: RequestType | null
   trigger?: string | null
   result?: string | null
+  systems?: string | null
+  currentWay?: string | null
+  links?: string | null
   sizeDays?: number | null
   needsCall?: boolean
   source?: string
@@ -145,6 +166,12 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
   assertType(input.type)
   assertSize(input.sizeDays)
   if (!input.title?.trim()) throw new DeskError('invalid', 'A request needs a title')
+  if (p.kind === 'client') {
+    const missing = missingContext(input)
+    if (missing.length) {
+      throw new DeskError('invalid', `Before it's sent, the request needs ${missing.map((m) => m.label).join('; ')}.`)
+    }
+  }
   const dolt = await isDolt(db)
   return db.transaction(async (tx) => {
     const isUuidRef = /^[0-9a-f-]{36}$/i.test(input.client)
@@ -172,6 +199,9 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
         type: input.type ?? null,
         trigger: input.trigger ?? null,
         result: input.result ?? null,
+        systems: input.systems?.trim() || null,
+        currentWay: input.currentWay?.trim() || null,
+        links: input.links?.trim() || null,
         sizeDays: input.sizeDays ?? null,
         needsCall: input.needsCall ?? false,
         source: input.source ?? (fromClient ? 'client' : 'owner'),
@@ -191,7 +221,9 @@ export async function scopeRequest(
   db: DbOrTx,
   p: Principal,
   ref: string,
-  patch: Partial<Pick<NewRequest, 'title' | 'type' | 'trigger' | 'result' | 'sizeDays' | 'needsCall'>>,
+  patch: Partial<
+    Pick<NewRequest, 'title' | 'type' | 'trigger' | 'result' | 'systems' | 'currentWay' | 'links' | 'sizeDays' | 'needsCall'>
+  >,
   now = new Date(),
 ) {
   requireAdmin(p)
