@@ -146,6 +146,12 @@ export const requests = desk.table(
     trigger: text('trigger'),
     /** What comes back: the one result handed to the client. */
     result: text('result'),
+    /** The tools, accounts and places it touches (e.g. their HighLevel, n8n, Vercel). */
+    systems: text('systems'),
+    /** How it's done today, or what goes wrong now. */
+    currentWay: text('current_way'),
+    /** Examples, files or links that show what they mean. */
+    links: text('links'),
     status: text('status').$type<RequestStatus>().notNull().default('new'),
     /** Order in the client's queue; lower runs first. Only set while queued. */
     position: integer('position'),

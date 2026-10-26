@@ -119,8 +119,11 @@
 
       /* Trigger → result flow */
       .flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch; margin-top: 12px; }
-      .flow .box { background: var(--bg2); border-radius: var(--r-md); padding: 10px 12px; min-height: 64px; }
-      .flow .box.missing { background: transparent; border: 1px dashed var(--line2); }
+      .box { background: var(--bg2); border-radius: var(--r-md); padding: 10px 12px; min-height: 64px; }
+      .box.missing { background: transparent; border: 1px dashed var(--line2); }
+      .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .pair .box { min-height: 0; }
+      @media (max-width: 480px) { .pair { grid-template-columns: 1fr; } }
       .flow .arrow { align-self: center; color: var(--ink3); }
       @container (max-width: 420px) { .flow { grid-template-columns: 1fr; } .flow .arrow { transform: rotate(90deg); justify-self: center; } }
       .caret::after { content: '▍'; color: var(--brand); animation: blink 1s steps(2) infinite; margin-left: 1px; }
