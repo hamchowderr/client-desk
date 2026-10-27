@@ -84,15 +84,15 @@ ${signOff}`,
   }
 }
 
-/** Everyone on the client's side with an email. */
+/** The retainer owner: the one person on the client's side the desk emails. */
 export async function recipients(db: DbOrTx, clientId: string) {
   return db
     .select({ name: contacts.name, email: contacts.email })
     .from(contacts)
-    .where(and(eq(contacts.clientId, clientId), isNotNull(contacts.email)))
+    .where(and(eq(contacts.clientId, clientId), eq(contacts.role, 'owner'), isNotNull(contacts.email)))
 }
 
-/** Send one email to each of the client's people; returns who it went to. */
+/** Email the client's owner; returns who it went to. */
 export async function emailClient(
   db: DbOrTx,
   crm: CrmAdapter,

@@ -33,9 +33,10 @@ describe('client emails', () => {
     expect(e.html).toContain('Which location?')
   })
 
-  it('goes to every contact with an email, by first name', async () => {
+  it('goes only to the retainer owner, by first name', async () => {
     await seedClient(db)
     await addContact(db, OWNER, 'EA', { name: 'Jordan Lee', email: 'r@ea.example', role: 'owner' })
+    await addContact(db, OWNER, 'EA', { name: 'Casey Park', email: 'c@ea.example' })
     await addContact(db, OWNER, 'EA', { name: 'No Email' })
     const sent: Array<{ to: string; subject: string }> = []
     const crm = {
