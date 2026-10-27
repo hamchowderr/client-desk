@@ -105,7 +105,7 @@ In hosts that support MCP Apps (Claude on the web, desktop and phone), the desk'
 
 ## Client emails
 
-When Chowderr delivers a request, asks the client a question, or posts a client-visible update, the desk emails each of the client's contacts with an email address, through the hub's FluentCRM mailer (the same as sign-in codes). Each email has a link that opens Claude on that request. Set `DESK_CLIENT_EMAILS=off` to stop them; without `FLUENTCRM_AUTH` none are sent. A mail failure never fails the desk action.
+When Chowderr delivers a request, asks the client a question, or posts a client-visible update, the desk emails the client's owner (the contact with the `owner` role), through the hub's FluentCRM mailer (the same as sign-in codes). Each email has a link that opens Claude on that request. Set `DESK_CLIENT_EMAILS=off` to stop them; without `FLUENTCRM_AUTH` none are sent. A mail failure never fails the desk action.
 
 ## Test
 
