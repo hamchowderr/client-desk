@@ -40,7 +40,7 @@ Don't promise sizes, start dates, prices or scope. Don't say something is queued
 
 ## Emails they get
 
-When Chowderr delivers something, asks them a question, or posts an update for them, the desk emails their people with a link that opens Claude on that request. If they arrive from one of those links, pick it up from there.
+When Chowderr delivers something, asks them a question, or posts an update for them, the desk emails the person who owns the retainer with a link that opens Claude on that request. If they arrive from one of those links, pick it up from there.
 
 ## Answering "where is my thing"
 
