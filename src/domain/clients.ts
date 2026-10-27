@@ -128,6 +128,7 @@ export async function getClientOverview(db: DbOrTx, p: Principal, ref: string, n
     id: formatRequestId(client.code, r.number),
     uuid: r.id,
     title: r.title,
+    for: r.forName,
     type: r.type,
     status: r.status,
     sizeDays: r.sizeDays,

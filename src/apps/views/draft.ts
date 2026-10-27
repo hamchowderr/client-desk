@@ -14,6 +14,7 @@ export type Draft = {
   systems?: string
   currentWay?: string
   links?: string
+  for?: string
   submittedBy?: string
 }
 type DraftResult = { draft: Draft; replyByIfSentNow?: string; missing?: string[]; client?: { name: string } }
@@ -40,7 +41,7 @@ const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, 
 
 /** Which field the text is still arriving in, so it gets the typing caret. */
 function lastField(d: Draft): keyof Draft | null {
-  for (const k of ['submittedBy', 'links', 'currentWay', 'systems', 'result', 'trigger', 'type', 'title'] as const) if (d[k]) return k
+  for (const k of ['submittedBy', 'for', 'links', 'currentWay', 'systems', 'result', 'trigger', 'type', 'title'] as const) if (d[k]) return k
   return null
 }
 
@@ -50,6 +51,7 @@ const ASK = {
   result: 'what you get back',
   systems: 'which tools or accounts it touches',
   currentWay: "how it's done today",
+  for: "who it's for",
 } as const
 
 const detail = (label: string, body: string, isMissing: boolean) =>
@@ -69,6 +71,7 @@ export function renderDraft(d: Draft, opts: { streaming: boolean; result?: Draft
       ${d.type ? `<span class="pill info">${esc(typeLabel[d.type] ?? d.type)}</span>` : ''}
     </div>
     <h1 style="margin-top:6px">${d.title ? text('title', '') : '<span class="skel" style="display:block;height:24px;width:60%"></span>'}</h1>
+    <p class="small ${d.for ? '' : 'muted'}" style="margin-top:4px">For ${d.for ? text('for', '') : opts.streaming ? '…' : '<span class="muted">(Claude will ask who this is for)</span>'}</p>
     <div class="flow">
       <div class="box ${d.trigger ? '' : 'missing'}"><div class="eyebrow">When this happens</div><div>${text(
         'trigger',

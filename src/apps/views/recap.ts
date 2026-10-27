@@ -2,9 +2,9 @@
  * A client's week: delivered, in progress, waiting on them, up next. Chowderr
  * can email it to the client from here.
  */
-import { call, day, draw, esc, on, progress, say, tell } from '../kit'
+import { call, day, draw, esc, forText, on, progress, say, tell } from '../kit'
 
-type Item = { id: string; title: string; status: string; sizeDays: number | null; startedAt: string | null; deliveredAt: string | null; deliverableUrl: string | null }
+type Item = { id: string; title: string; for?: string | null; status: string; sizeDays: number | null; startedAt: string | null; deliveredAt: string | null; deliverableUrl: string | null }
 export type Recap = {
   client: { code: string; name: string }
   from: string
@@ -24,7 +24,7 @@ function block(title: string, items: Item[], body: (i: Item) => string, tone = '
   if (!items.length) return ''
   return `<section style="margin-top:14px"><div class="eyebrow" ${tone ? `style="color:var(--${tone})"` : ''}>${esc(title)}</div><div class="list">${items
     .map(
-      (i) => `<div class="item"><div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${body(i)}</div>${
+      (i) => `<div class="item"><div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${forText(i.for)}${body(i)}</div>${
         i.status === 'active' ? progress(i.startedAt, i.sizeDays) : ''
       }</div><button class="ghost small" data-act="show" data-id="${esc(i.id)}">Open</button></div>`,
     )

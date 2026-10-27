@@ -21,12 +21,14 @@ import {
   statusLabel,
   toggleFullscreen,
   typeLabel,
+  forText,
 } from '../kit'
 import type { Req } from './request'
 
 type Item = {
   id: string
   title: string
+  for?: string | null
   type: string | null
   status: string
   sizeDays: number | null
@@ -85,7 +87,7 @@ function item(i: Item, opts: { n?: number; admin: boolean; expandable: boolean }
       ${opts.n ? `<span class="num">${opts.n}</span>` : ''}
       <div class="grow">
         <div class="t">${esc(i.title)}</div>
-        <div class="small muted"><span class="rid">${esc(i.id)}</span>${i.status === 'in_review' ? ` · <span style="color:var(--warn)">Ready for review</span>` : ''}${meta ? ` · ${esc(meta)}` : ''}${
+        <div class="small muted"><span class="rid">${esc(i.id)}</span>${forText(i.for)}${i.status === 'in_review' ? ` · <span style="color:var(--warn)">Ready for review</span>` : ''}${meta ? ` · ${esc(meta)}` : ''}${
           i.replyDueAt ? ` · reply by ${esc(dayTime(i.replyDueAt))}` : ''
         }</div>
         ${i.status === 'active' ? progress(i.startedAt, i.sizeDays) : ''}
@@ -161,7 +163,7 @@ export function renderStatus(o: Overview, opts: { admin: boolean }) {
           .map(
             (i) => `<div class="spread" style="margin-top:8px"><div class="grow"><div class="t">${esc(i.title)}</div><div class="small"><span class="rid">${esc(
               i.id,
-            )}</span></div></div>${admin ? '' : `<button class="primary" data-act="answer" data-id="${esc(i.id)}">Answer</button>`}</div>`,
+            )}</span>${forText(i.for)}</div></div>${admin ? '' : `<button class="primary" data-act="answer" data-id="${esc(i.id)}">Answer</button>`}</div>`,
           )
           .join('')}
       </div>`
@@ -184,7 +186,7 @@ export function renderStatus(o: Overview, opts: { admin: boolean }) {
         next
           ? `<div class="soft" style="margin-top:10px"><div class="eyebrow">Up next</div><div class="t">${esc(next.title)}</div><div class="small muted"><span class="rid">${esc(
               next.id,
-            )}</span>${o.queue.length > 1 ? ` · then ${o.queue.length - 1} more` : ''}</div></div>`
+            )}</span>${forText(next.for)}${o.queue.length > 1 ? ` · then ${o.queue.length - 1} more` : ''}</div></div>`
           : ''
       }
       ${retainerFacts}
@@ -248,7 +250,7 @@ export function renderList(items: Array<Req & { client?: string }>, opts: { admi
       .map(
         (r) => `<div class="item"><div class="grow"><div class="t">${esc(r.title)}</div><div class="small muted"><span class="rid">${esc(
           r.id,
-        )}</span>${opts.admin && r.client ? ` · ${esc(r.client)}` : ''} · ${esc(statusLabel[r.status] ?? r.status)}</div></div>
+        )}</span>${opts.admin && r.client ? ` · ${esc(r.client)}` : ''}${forText(r.for)} · ${esc(statusLabel[r.status] ?? r.status)}</div></div>
         <button class="ghost small" data-act="show" data-id="${esc(r.id)}">Open</button></div>`,
       )
       .join('')}</div>

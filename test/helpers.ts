@@ -67,4 +67,4 @@ export async function seedClient(
   return { client, retainer, asClient }
 }
 
-export const scoped = { type: 'build' as const, trigger: 'Form submitted', result: 'Lead in CRM', sizeDays: 3 }
+export const scoped = { type: 'build' as const, trigger: 'Form submitted', result: 'Lead in CRM', sizeDays: 3, for: 'team' }
