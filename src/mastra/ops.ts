@@ -293,7 +293,7 @@ export const adminOps = [
   }),
   op({
     id: 'send_recap',
-    description: "Email a client's weekly recap to their people. Only when Chowderr asks for it to be sent.",
+    description: "Email a client's weekly recap to the client's owner. Only when Chowderr asks for it to be sent.",
     audience: 'admin',
     input: z.object({ client: clientRef }),
     run: async (db, p, i) => {
