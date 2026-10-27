@@ -5,11 +5,6 @@ import { type Principal, requireAdmin } from './principal'
 import { formatRequestId } from './refs'
 import { describeRetainer } from './retainers'
 
-/** Spots on the Retainer page ("6 of 8 taken"). */
-export function capacity() {
-  return Number(process.env.DESK_CAPACITY ?? 8)
-}
-
 /**
  * The morning view: replies owed, what's active per client, what waits on whom.
  * Overdue replies come first, then the ones due today.
@@ -36,6 +31,7 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
     id: formatRequestId(c.code, r.number),
     client: c.name,
     title: r.title,
+    for: r.forName,
     dueAt: r.replyDueAt,
     overdue: r.replyDueAt! < now,
   }))
@@ -63,6 +59,7 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
         .map((r) => ({
           id: formatRequestId(client.code, r.number),
           title: r.title,
+          for: r.forName,
           type: r.type,
           sizeDays: r.sizeDays,
           startedAt: r.startedAt,
@@ -91,7 +88,6 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
       queued: boards.reduce((n, b) => n + b.queued.length, 0),
       waitingOnClients: boards.reduce((n, b) => n + b.waitingOnClient.length, 0),
     },
-    spots: { taken: open.length, capacity: capacity() },
     clients: boards,
   }
 }

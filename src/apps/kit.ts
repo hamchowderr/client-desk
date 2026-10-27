@@ -285,3 +285,9 @@ export function flash(text: string, tone: 'ok' | 'bad' | '' = '') {
 export function draw(html: string) {
   root.innerHTML = html
 }
+
+/** " · For Rene Gonzalez, The Tax Doctor": who a request is for, as a meta-line piece. */
+export function forText(f: string | { name: string } | null | undefined) {
+  const name = typeof f === 'string' ? f : f?.name
+  return name ? ` · For ${esc(name)}` : ''
+}

@@ -1,6 +1,6 @@
 /**
  * Chowderr's command center: reply deadlines that warm up as they close in,
- * capacity, and every client's lanes with one-press Start, Mark done and queue
+ * and every client's lanes with one-press Start, Mark done and queue
  * reordering. Inline it's the urgent part; full screen is the whole desk.
  */
 import {
@@ -20,14 +20,14 @@ import {
   tell,
   toggleFullscreen,
   typeLabel,
+  forText,
 } from '../kit'
 
-type Item = { id: string; title: string; type: string | null; sizeDays: number | null; startedAt?: string | null }
+type Item = { id: string; title: string; for?: string | null; type: string | null; sizeDays: number | null; startedAt?: string | null }
 export type Board = {
   at: string
-  repliesDue: Array<{ id: string; client: string; title: string; dueAt: string; overdue: boolean }>
+  repliesDue: Array<{ id: string; client: string; title: string; for?: string | null; dueAt: string; overdue: boolean }>
   counts: { overdueReplies: number; repliesDueToday: number; active: number; queued: number; waitingOnClients: number }
-  spots: { taken: number; capacity: number }
   clients: Array<{
     code: string
     name: string
@@ -52,7 +52,7 @@ function replies(b: Board, limit: number) {
     .map((r) => {
       const h = heat(r.dueAt)
       return `<div class="item">
-        <div class="grow"><div class="t">${esc(r.title)}</div><div class="small muted"><span class="rid">${esc(r.id)}</span> · ${esc(r.client)}</div></div>
+        <div class="grow"><div class="t">${esc(r.title)}</div><div class="small muted"><span class="rid">${esc(r.id)}</span> · ${esc(r.client)}${forText(r.for)}</div></div>
         <span class="small clock heat-${h}">${r.overdue ? 'overdue ' : ''}${esc(fromNow(r.dueAt))}</span>
         <button data-act="reply" data-id="${esc(r.id)}">Reply</button>
       </div>`
@@ -66,7 +66,7 @@ function row(i: Item, actions: string, n?: number) {
   const meta = [i.type ? typeLabel[i.type] : null, i.sizeDays ? `${i.sizeDays}d` : null].filter(Boolean).join(' · ')
   return `<div class="item">
     ${n ? `<span class="num">${n}</span>` : ''}
-    <div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${
+    <div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${forText(i.for)}${
       meta ? ` · ${esc(meta)}` : ''
     }</div>${i.startedAt ? progress(i.startedAt, i.sizeDays) : ''}</div>
     <div class="row">${actions}</div>
@@ -123,10 +123,7 @@ export function renderCommand(b: Board) {
     <div class="tile"><div class="n">${b.counts.active}</div><div class="small muted">in progress</div></div>
     <div class="tile"><div class="n">${b.counts.queued}</div><div class="small muted">queued</div></div>
     <div class="tile"><div class="n">${b.counts.waitingOnClients}</div><div class="small muted">waiting on clients</div></div>
-  </div>
-  <div class="row small muted" style="margin-top:12px"><span>Retainer spots</span><div class="grow">${seg(b.spots.taken, b.spots.capacity)}</div><span>${
-    b.spots.taken
-  } of ${b.spots.capacity}</span></div>`
+  </div>`
 
   const head = `<div class="spread">
     <div><div class="eyebrow">Client Desk</div><h1>${b.counts.overdueReplies ? `${b.counts.overdueReplies} overdue` : b.repliesDue.length ? `${b.repliesDue.length} to reply to` : 'All caught up'}</h1></div>

@@ -46,21 +46,46 @@ describe('same-day reply clock', () => {
   })
 })
 
+const CONTEXT = {
+  trigger: 'Someone fills in the website form',
+  result: 'The lead is in the CRM and tagged',
+  systems: 'WordPress form, HighLevel',
+  currentWay: 'Copied in by hand each morning',
+  for: 'team',
+}
+
 describe('intake and queue', () => {
   it('a client request lands as new with the reply clock running, and the owner answering stops it', async () => {
     const { asClient } = await seedClient(db)
     const r = await createRequest(db, asClient, {
       client: 'GMA',
       title: 'Lead form stopped sending to CRM',
+      ...CONTEXT,
       receivedAt: new Date('2026-10-15T01:00:00Z'),
     })
     expect(r.id).toBe('GMA-001')
     expect(r.status).toBe('new')
     expect(r.replyDueAt).not.toBeNull()
-    expect((await digest(db, OWNER, new Date('2026-10-15T02:00:00Z'))).repliesDue).toHaveLength(1)
+    expect(r.systems).toBe(CONTEXT.systems)
+    expect(r.currentWay).toBe(CONTEXT.currentWay)
+    const board = await digest(db, OWNER, new Date('2026-10-15T02:00:00Z'))
+    expect(board.repliesDue).toHaveLength(1)
+    expect(board).not.toHaveProperty('spots')
 
     await scopeRequest(db, OWNER, 'GMA-001', { type: 'fix', trigger: 'Form submit', result: 'Lead in CRM', sizeDays: 2 })
     expect((await digest(db, OWNER)).repliesDue).toHaveLength(0)
+  })
+
+  it("a client can't send a request without the full context, but the owner can log one bare", async () => {
+    const { asClient } = await seedClient(db)
+    const vague = createRequest(db, asClient, { client: 'GMA', title: 'Fix our CRM', trigger: 'A new lead' })
+    await expect(vague).rejects.toThrow(/what they get back.*which tools.*how it's done today/)
+    await expect(createRequest(db, asClient, { client: 'GMA', title: 'Fix our CRM', ...CONTEXT, systems: '  ' })).rejects.toThrow(
+      /which tools/,
+    )
+    expect((await createRequest(db, OWNER, { client: 'GMA', title: 'Fix our CRM' })).id).toBe('GMA-001')
+    const ok = await createRequest(db, asClient, { client: 'GMA', title: 'Fix our CRM', ...CONTEXT, links: 'https://example.com/form' })
+    expect(ok.links).toBe('https://example.com/form')
   })
 
   it('cannot queue until typed and scoped, and size must be 2 to 5 days', async () => {
@@ -121,7 +146,7 @@ describe('split and reorder', () => {
   it('splits big work into parts that queue where the parent sat', async () => {
     await seedClient(db)
     await createRequest(db, OWNER, { client: 'GMA', title: 'First', ...scoped })
-    await createRequest(db, OWNER, { client: 'GMA', title: 'Rebuild sales pipeline', type: 'build', trigger: 'Deal won', result: 'Pipeline live' })
+    await createRequest(db, OWNER, { client: 'GMA', title: 'Rebuild sales pipeline', type: 'build', trigger: 'Deal won', result: 'Pipeline live', for: 'team' })
     await createRequest(db, OWNER, { client: 'GMA', title: 'Last', ...scoped })
     await queueRequest(db, OWNER, 'GMA-001')
     await scopeRequest(db, OWNER, 'GMA-002', { sizeDays: 5 })
@@ -190,7 +215,7 @@ describe('client scope', () => {
     const { asClient } = await seedClient(db)
     await seedClient(db, { code: 'KBS' })
     await createRequest(db, OWNER, { client: 'KBS', title: 'Other client work' })
-    await createRequest(db, asClient, { client: 'GMA', title: 'Mine' })
+    await createRequest(db, asClient, { client: 'GMA', title: 'Mine', ...CONTEXT })
     await addUpdate(db, OWNER, 'GMA-001', { body: 'internal thought' })
     await addUpdate(db, OWNER, 'GMA-001', { body: 'On it today', visibility: 'client' })
 
@@ -198,7 +223,7 @@ describe('client scope', () => {
     expect(mine.timeline.map((t) => t.body)).toEqual(['Request received', 'On it today'])
     expect((await listRequests(db, asClient)).map((r) => r.client)).toEqual(['GMA'])
     await expect(getRequest(db, asClient, 'KBS-001')).rejects.toBeInstanceOf(DeskError)
-    await expect(createRequest(db, asClient, { client: 'KBS', title: 'sneaky' })).rejects.toMatchObject({ code: 'not_found' })
+    await expect(createRequest(db, asClient, { client: 'KBS', title: 'sneaky', ...CONTEXT })).rejects.toMatchObject({ code: 'not_found' })
     await expect(startRequest(db, asClient, 'GMA-001')).rejects.toMatchObject({ code: 'forbidden' })
   })
 

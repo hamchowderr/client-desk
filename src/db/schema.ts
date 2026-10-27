@@ -146,6 +146,18 @@ export const requests = desk.table(
     trigger: text('trigger'),
     /** What comes back: the one result handed to the client. */
     result: text('result'),
+    /** The tools, accounts and places it touches (e.g. their HighLevel, n8n, Vercel). */
+    systems: text('systems'),
+    /** How it's done today, or what goes wrong now. */
+    currentWay: text('current_way'),
+    /** Examples, files or links that show what they mean. */
+    links: text('links'),
+    /** Who the work is for: one of the client's own customers, or someone on their team. */
+    forKind: text('for_kind').$type<'customer' | 'team'>(),
+    /** A customers.id or contacts.id, depending on forKind. */
+    forId: uuid('for_id'),
+    /** The name shown with the request, kept with it so lists need no joins. */
+    forName: text('for_name'),
     status: text('status').$type<RequestStatus>().notNull().default('new'),
     /** Order in the client's queue; lower runs first. Only set while queued. */
     position: integer('position'),
@@ -170,6 +182,25 @@ export const requests = desk.table(
     check('requests_size_days', sql`${t.sizeDays} is null or ${t.sizeDays} between 2 and 5`),
   ],
 )
+
+/** A client's own customers, so each request can say who it's for (e.g. Rene Gonzalez, The Tax Doctor). */
+export const customers = desk.table(
+  'customers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => clients.id, { onDelete: 'cascade' }),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name'),
+    company: text('company'),
+    notes: text('notes'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('customers_client_idx').on(t.clientId)],
+)
+
+export type Customer = typeof customers.$inferSelect
 
 export const updates = desk.table(
   'updates',

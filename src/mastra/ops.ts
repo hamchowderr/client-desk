@@ -11,6 +11,7 @@ import {
   updateClient,
 } from '../domain/clients'
 import { billingHistory, linkBilling } from '../domain/billing'
+import { addCustomer, whoFor } from '../domain/customers'
 import { crmFromEnv } from '../crm'
 import { syncCrm } from '../domain/crm'
 import { digest } from '../domain/digest'
@@ -33,6 +34,7 @@ import {
   reopenRequest,
   reorderQueue,
   scopeRequest,
+  setRequestFor,
   splitRequest,
   startNext,
   startRequest,
@@ -82,7 +84,7 @@ export const adminOps = [
   op({
     id: 'digest',
     description:
-      "Today's view across all clients: replies owed (overdue first), active work, queues, what's waiting on clients, and spots taken.",
+      "Today's view across all clients: replies owed (overdue first), active work, queues and what's waiting on clients.",
     audience: 'admin',
     input: z.object({}),
     run: (db, p) => digest(db, p),
@@ -149,6 +151,29 @@ export const adminOps = [
     }),
     run: (db, p, { client, ...rest }) => addContact(db, p, client, rest),
     http: { method: 'POST', path: '/desk/clients/:client/contacts' },
+  }),
+  op({
+    id: 'add_customer',
+    description:
+      "Add one of a client's customers so requests can say who they're for. Always give first name, last name and company, e.g. Rene Gonzalez, The Tax Doctor.",
+    audience: 'admin',
+    input: z.object({
+      client: clientRef,
+      firstName: z.string(),
+      lastName: z.string().optional(),
+      company: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+    run: (db, p, { client, ...rest }) => addCustomer(db, p, client, rest),
+    http: { method: 'POST', path: '/desk/clients/:client/customers' },
+  }),
+  op({
+    id: 'who_for',
+    description: "Who a client's requests can be for: their customers and their team. Use it to fill a request's \"for\".",
+    audience: 'admin',
+    input: z.object({ client: clientRef }),
+    run: (db, p, i) => whoFor(db, p, i.client),
+    http: { method: 'GET', path: '/desk/clients/:client/customers' },
   }),
   op({
     id: 'link_channel',
@@ -316,11 +341,12 @@ export const adminOps = [
   }),
   op({
     id: 'list_requests',
-    description: 'Requests across clients, newest first. Filter by client and status.',
+    description: "Requests across clients, newest first. Filter by client, status, and who it's for.",
     audience: 'admin',
     input: z.object({
       client: clientRef.optional(),
       status: z.array(z.enum(REQUEST_STATUSES)).optional(),
+      for: z.string().optional().describe("Only requests for this customer or team member, e.g. Tax Doctor or Cass"),
       limit: z.number().int().max(500).optional(),
     }),
     run: (db, p, i) => listRequests(db, p, i),
@@ -345,6 +371,10 @@ export const adminOps = [
       type: requestType.optional(),
       trigger: z.string().optional().describe('What starts it'),
       result: z.string().optional().describe('What comes back to the client'),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
+      for: z.string().optional().describe("Who it's for: one of the client's customers (e.g. Rene or The Tax Doctor), a team member (e.g. Cass), or the client's own company for their internal work"),
       sizeDays: size.optional(),
       needsCall: z.boolean().optional(),
       source: z.string().optional().describe('Where it came from: telegram, slack, email, call, owner'),
@@ -355,7 +385,7 @@ export const adminOps = [
   }),
   op({
     id: 'scope_request',
-    description: 'Set or change a request’s title, type, trigger, result, size or needs-call flag.',
+    description: "Set or change a request’s title, type, trigger, result, tools involved, how it’s done today, links, who it's for, size or needs-call flag.",
     audience: 'admin',
     input: z.object({
       request: requestRef,
@@ -363,6 +393,10 @@ export const adminOps = [
       type: requestType.optional(),
       trigger: z.string().optional(),
       result: z.string().optional(),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
+      for: z.string().optional().describe("Who it's for: one of the client's customers (e.g. Rene or The Tax Doctor), a team member (e.g. Cass), or the client's own company for their internal work"),
       sizeDays: size.optional(),
       needsCall: z.boolean().optional(),
     }),
@@ -371,7 +405,7 @@ export const adminOps = [
   }),
   op({
     id: 'queue_request',
-    description: 'Queue a scoped request at the back of the client’s queue (or the front). Needs type, trigger, result and size.',
+    description: 'Queue a scoped request at the back of the client’s queue (or the front). Needs type, trigger, result, size and who it’s for.',
     audience: 'admin',
     input: z.object({ request: requestRef, front: z.boolean().optional() }),
     run: (db, p, i) => queueRequest(db, p, i.request, { front: i.front }),
@@ -549,9 +583,12 @@ export const clientOps = [
   }),
   op({
     id: 'my_requests',
-    description: 'This client’s requests, newest first. Optionally filter by status.',
+    description: "This client’s requests, newest first. Optionally filter by status or who it's for.",
     audience: 'client',
-    input: z.object({ status: z.array(z.enum(REQUEST_STATUSES)).optional() }),
+    input: z.object({
+      status: z.array(z.enum(REQUEST_STATUSES)).optional(),
+      for: z.string().optional().describe("Only requests for this customer or team member"),
+    }),
     run: (db, p, i) => listRequests(db, clientOnly(p), i),
     http: { method: 'GET', path: '/desk/me/requests' },
   }),
@@ -566,18 +603,48 @@ export const clientOps = [
   op({
     id: 'submit_request',
     description:
-      'Submit a new request for this client. Ask the client what triggers it and what result they expect before submitting. Where the host shows interactive screens, use draft_request instead and let the client press Submit. It lands as new; Chowderr confirms scope and size.',
+      'Submit a new request for this client. It is refused until it says what starts it (trigger), what they get back (result), which tools or accounts it touches (systems), how it’s done today (currentWay) and who it’s for (for: one of their customers, a team member, or their own company; see my_people); ask for any that are missing, one short question at a time. Where the host shows interactive screens, use draft_request instead and let the client press Submit. It lands as new; Chowderr confirms scope and size.',
     audience: 'client',
     input: z.object({
       title: z.string(),
       type: requestType.optional(),
       trigger: z.string().optional(),
       result: z.string().optional(),
+      systems: z.string().optional().describe('Tools, accounts and places it touches, e.g. their HighLevel, n8n, Vercel'),
+      currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
+      links: z.string().optional().describe('Examples, files or links that show what they mean'),
+      for: z.string().optional().describe("Who it's for: one of the client's customers (e.g. Rene or The Tax Doctor), a team member (e.g. Cass), or the client's own company for their internal work"),
       source: z.string().optional().describe('telegram, slack, email or portal'),
       submittedBy: z.string().optional().describe('Name of the person on the client side'),
     }),
     run: (db, p, i) => createRequest(db, clientOnly(p), { ...i, client: clientOnly(p).clientId }),
     http: { method: 'POST', path: '/desk/me/requests' },
+  }),
+  op({
+    id: 'my_people',
+    description: "Who this client's requests can be for: their customers and their team. Every request names one.",
+    audience: 'client',
+    input: z.object({}),
+    run: (db, p) => whoFor(db, p, clientOnly(p).clientId),
+    http: { method: 'GET', path: '/desk/me/customers' },
+  }),
+  op({
+    id: 'add_my_customer',
+    description:
+      "Add one of this client's customers so requests can be for them. Always first name, last name and company, e.g. Rene Gonzalez, The Tax Doctor. Check my_people first so nobody is added twice.",
+    audience: 'client',
+    input: z.object({ firstName: z.string(), lastName: z.string(), company: z.string().optional() }),
+    run: (db, p, i) => addCustomer(db, clientOnly(p), clientOnly(p).clientId, i),
+    http: { method: 'POST', path: '/desk/me/customers' },
+  }),
+  op({
+    id: 'set_my_request_for',
+    description:
+      "Change who one of this client's requests is for: one of their customers (see my_people), a team member, or their own company.",
+    audience: 'client',
+    input: z.object({ request: requestRef, for: z.string() }),
+    run: (db, p, i) => setRequestFor(db, clientOnly(p), i.request, i.for),
+    http: { method: 'POST', path: '/desk/me/requests/:request/for' },
   }),
   op({
     id: 'add_message',

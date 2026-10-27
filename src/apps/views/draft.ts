@@ -11,6 +11,10 @@ export type Draft = {
   type?: string
   trigger?: string
   result?: string
+  systems?: string
+  currentWay?: string
+  links?: string
+  for?: string
   submittedBy?: string
 }
 type DraftResult = { draft: Draft; replyByIfSentNow?: string; missing?: string[]; client?: { name: string } }
@@ -33,17 +37,32 @@ function remember(id: string) {
   }
 }
 
+const joinAnd = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
 /** Which field the text is still arriving in, so it gets the typing caret. */
 function lastField(d: Draft): keyof Draft | null {
-  for (const k of ['submittedBy', 'result', 'trigger', 'type', 'title'] as const) if (d[k]) return k
+  for (const k of ['submittedBy', 'for', 'links', 'currentWay', 'systems', 'result', 'trigger', 'type', 'title'] as const) if (d[k]) return k
   return null
 }
+
+/** The four things every request needs before it can be sent, as the card asks for them. */
+const ASK = {
+  trigger: 'what starts it',
+  result: 'what you get back',
+  systems: 'which tools or accounts it touches',
+  currentWay: "how it's done today",
+  for: "who it's for",
+} as const
+
+const detail = (label: string, body: string, isMissing: boolean) =>
+  `<div class="box ${isMissing ? 'missing' : ''}"><div class="eyebrow">${esc(label)}</div><div>${body}</div></div>`
 
 export function renderDraft(d: Draft, opts: { streaming: boolean; result?: DraftResult }) {
   const typing = opts.streaming ? lastField(d) : null
   const text = (k: keyof Draft, empty: string) =>
     d[k] ? `<span class="${typing === k ? 'caret' : ''}">${esc(d[k])}</span>` : `<span class="muted">${esc(empty)}</span>`
-  const missing = opts.result?.missing ?? [!d.trigger && 'trigger', !d.result && 'result'].filter(Boolean)
+  const missing: string[] =
+    opts.result?.missing ?? (Object.keys(ASK) as Array<keyof typeof ASK>).filter((k) => !d[k]?.trim())
   const ready = !opts.streaming && !!opts.result && missing.length === 0 && !!d.title
 
   draw(`<div class="card appear">
@@ -52,6 +71,7 @@ export function renderDraft(d: Draft, opts: { streaming: boolean; result?: Draft
       ${d.type ? `<span class="pill info">${esc(typeLabel[d.type] ?? d.type)}</span>` : ''}
     </div>
     <h1 style="margin-top:6px">${d.title ? text('title', '') : '<span class="skel" style="display:block;height:24px;width:60%"></span>'}</h1>
+    <p class="small ${d.for ? '' : 'muted'}" style="margin-top:4px">For ${d.for ? text('for', '') : opts.streaming ? '…' : '<span class="muted">(Claude will ask who this is for)</span>'}</p>
     <div class="flow">
       <div class="box ${d.trigger ? '' : 'missing'}"><div class="eyebrow">When this happens</div><div>${text(
         'trigger',
@@ -63,15 +83,20 @@ export function renderDraft(d: Draft, opts: { streaming: boolean; result?: Draft
         opts.streaming ? '…' : 'Claude will ask you',
       )}</div></div>
     </div>
+    <div class="pair">
+      ${detail('Tools and accounts', text('systems', opts.streaming ? '…' : 'Claude will ask you'), !d.systems)}
+      ${detail('How it works today', text('currentWay', opts.streaming ? '…' : 'Claude will ask you'), !d.currentWay)}
+    </div>
+    ${d.links ? `<div style="margin-top:8px">${detail('Links and examples', text('links', ''), false)}</div>` : ''}
     ${
       ready
         ? `<p class="small muted" style="margin-top:12px">Send it now for a reply by ${esc(
             dayTime(opts.result!.replyByIfSentNow),
           )}. Chowderr confirms the scope and size before it's queued.</p>`
         : !opts.streaming && missing.length
-          ? `<p class="small muted" style="margin-top:12px">Almost there. Tell Claude ${
-              missing.includes('trigger') ? 'what starts it' : ''
-            }${missing.length === 2 ? ' and ' : ''}${missing.includes('result') ? 'what you get back' : ''}.</p>`
+          ? `<p class="small muted" style="margin-top:12px">Almost there. Tell Claude ${esc(
+              joinAnd(missing.map((k) => ASK[k as keyof typeof ASK] ?? k)),
+            )}.</p>`
           : ''
     }
     <div class="actions">
