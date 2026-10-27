@@ -16,6 +16,7 @@ import { DeskError, notFound, ruleBroken } from './errors'
 import { type Principal, assertCanSeeClient, authorOf, requireAdmin } from './principal'
 import { formatRequestId, isUuid, parseRequestId } from './refs'
 import { resolveClient } from './clients'
+import { presentFor, resolveFor } from './customers'
 import { isPausedAt, listPauses, loadOpenRetainer } from './retainers'
 import { replyDueAt } from './time'
 
@@ -55,6 +56,10 @@ export function presentRequest(client: Pick<Client, 'code'>, r: Request) {
     type: r.type,
     trigger: r.trigger,
     result: r.result,
+    systems: r.systems,
+    currentWay: r.currentWay,
+    links: r.links,
+    for: presentFor(r),
     status: r.status,
     position: r.position,
     sizeDays: r.sizeDays,
@@ -123,12 +128,33 @@ function assertSize(size: number | undefined | null) {
   }
 }
 
+/**
+ * What a client's request must say before it's sent, so Chowderr can act on it
+ * without a round of questions. In plain words, for the client and their Claude.
+ */
+export const REQUEST_CONTEXT = [
+  ['trigger', 'what starts it'],
+  ['result', 'what they get back when it works'],
+  ['systems', 'which tools, accounts or places it touches'],
+  ['currentWay', "how it's done today, or what goes wrong now"],
+  ['for', "who it's for: one of their customers, or someone on their team"],
+] as const
+
+export function missingContext(input: Partial<Record<(typeof REQUEST_CONTEXT)[number][0], string | null | undefined>>) {
+  return REQUEST_CONTEXT.filter(([k]) => !input[k]?.trim()).map(([k, label]) => ({ field: k, label }))
+}
+
 export type NewRequest = {
   client: string
   title: string
   type?: RequestType | null
   trigger?: string | null
   result?: string | null
+  systems?: string | null
+  currentWay?: string | null
+  links?: string | null
+  /** Who it's for: one of the client's customers, a team member, or "team". */
+  for?: string | null
   sizeDays?: number | null
   needsCall?: boolean
   source?: string
@@ -145,6 +171,12 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
   assertType(input.type)
   assertSize(input.sizeDays)
   if (!input.title?.trim()) throw new DeskError('invalid', 'A request needs a title')
+  if (p.kind === 'client') {
+    const missing = missingContext(input)
+    if (missing.length) {
+      throw new DeskError('invalid', `Before it's sent, the request needs ${missing.map((m) => m.label).join('; ')}.`)
+    }
+  }
   const dolt = await isDolt(db)
   return db.transaction(async (tx) => {
     const isUuidRef = /^[0-9a-f-]{36}$/i.test(input.client)
@@ -158,6 +190,7 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
     assertCanSeeClient(p, client.id)
     const retainer = await loadOpenRetainer(tx, client.id)
     if (!retainer) throw ruleBroken(`${client.name} has no open retainer, so requests can't be taken`)
+    const forWho = input.for?.trim() ? await resolveFor(tx, client, input.for) : null
 
     const number = client.requestSeq + 1
     await tx.update(clients).set({ requestSeq: number }).where(eq(clients.id, client.id))
@@ -172,6 +205,12 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
         type: input.type ?? null,
         trigger: input.trigger ?? null,
         result: input.result ?? null,
+        systems: input.systems?.trim() || null,
+        currentWay: input.currentWay?.trim() || null,
+        links: input.links?.trim() || null,
+        forKind: forWho?.forKind ?? null,
+        forId: forWho?.forId ?? null,
+        forName: forWho?.forName ?? null,
         sizeDays: input.sizeDays ?? null,
         needsCall: input.needsCall ?? false,
         source: input.source ?? (fromClient ? 'client' : 'owner'),
@@ -191,7 +230,9 @@ export async function scopeRequest(
   db: DbOrTx,
   p: Principal,
   ref: string,
-  patch: Partial<Pick<NewRequest, 'title' | 'type' | 'trigger' | 'result' | 'sizeDays' | 'needsCall'>>,
+  patch: Partial<
+    Pick<NewRequest, 'title' | 'type' | 'trigger' | 'result' | 'systems' | 'currentWay' | 'links' | 'for' | 'sizeDays' | 'needsCall'>
+  >,
   now = new Date(),
 ) {
   requireAdmin(p)
@@ -199,11 +240,26 @@ export async function scopeRequest(
   assertSize(patch.sizeDays)
   const { request: r, client } = await resolveRequest(db, p, ref)
   assertStatus(r, ['new', 'scoping', 'queued', 'waiting_on_client'], 'rescope')
+  const { for: forText, ...rest } = patch
   const row = await setStatus(db, r.id, {
-    ...patch,
+    ...rest,
+    ...(forText?.trim() ? await resolveFor(db, client, forText) : {}),
     status: r.status === 'new' ? 'scoping' : r.status,
   })
   await markResponded(db, p, r, now)
+  return presentRequest(client, row)
+}
+
+/**
+ * Say who a request is for. Chowderr or the client can, until it's finished;
+ * the change shows in the request's story.
+ */
+export async function setRequestFor(db: DbOrTx, p: Principal, ref: string, text: string) {
+  const { request: r, client } = await resolveRequest(db, p, ref)
+  assertStatus(r, ['new', 'scoping', 'queued', 'active', 'in_review', 'waiting_on_client'], "change who it's for on")
+  const who = await resolveFor(db, client, text)
+  const row = await setStatus(db, r.id, who)
+  await log(db, p, r.id, `Now for ${who.forName}`)
   return presentRequest(client, row)
 }
 
@@ -213,6 +269,7 @@ function missingForQueue(r: Request): string[] {
   if (!r.trigger) missing.push('trigger')
   if (!r.result) missing.push('result')
   if (!r.sizeDays) missing.push('size (2 to 5 days)')
+  if (!r.forName) missing.push("who it's for")
   return missing
 }
 
@@ -418,7 +475,7 @@ export async function splitRequest(
       const type = part.type ?? parent.type
       const trigger = part.trigger ?? parent.trigger
       const result = part.result ?? parent.result
-      const ready = Boolean(type && trigger && result)
+      const ready = Boolean(type && trigger && result && parent.forName)
       const [row] = await tx
         .insert(requests)
         .values({
@@ -429,6 +486,12 @@ export async function splitRequest(
           trigger,
           result,
           sizeDays: part.sizeDays,
+          systems: parent.systems,
+          currentWay: parent.currentWay,
+          links: parent.links,
+          forKind: parent.forKind,
+          forId: parent.forId,
+          forName: parent.forName,
           parentId: parent.id,
           source: parent.source,
           submittedBy: parent.submittedBy,
@@ -552,7 +615,7 @@ export async function getRequest(db: DbOrTx, p: Principal, ref: string) {
 export async function listRequests(
   db: DbOrTx,
   p: Principal,
-  filter: { client?: string; status?: RequestStatus[]; limit?: number } = {},
+  filter: { client?: string; status?: RequestStatus[]; for?: string; limit?: number } = {},
 ) {
   const conds = []
   if (p.kind === 'client') conds.push(eq(requests.clientId, p.clientId))
@@ -561,6 +624,7 @@ export async function listRequests(
     conds.push(eq(requests.clientId, c.id))
   }
   if (filter.status?.length) conds.push(inArray(requests.status, filter.status))
+  if (filter.for?.trim()) conds.push(sql`lower(${requests.forName}) like ${`%${filter.for.trim().toLowerCase()}%`}`)
   const rows = await db
     .select({ request: requests, client: clients })
     .from(requests)

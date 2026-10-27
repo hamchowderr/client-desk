@@ -32,6 +32,7 @@ export async function weeklyRecap(db: DbOrTx, p: Principal, clientRef: string, n
   const item = (r: (typeof rows)[number]) => ({
     id: formatRequestId(client.code, r.number),
     title: r.title,
+    for: r.forName,
     status: r.status,
     sizeDays: r.sizeDays,
     startedAt: r.startedAt,
