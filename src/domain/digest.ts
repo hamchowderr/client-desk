@@ -31,6 +31,7 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
     id: formatRequestId(c.code, r.number),
     client: c.name,
     title: r.title,
+    for: r.forName,
     dueAt: r.replyDueAt,
     overdue: r.replyDueAt! < now,
   }))
@@ -58,6 +59,7 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
         .map((r) => ({
           id: formatRequestId(client.code, r.number),
           title: r.title,
+          for: r.forName,
           type: r.type,
           sizeDays: r.sizeDays,
           startedAt: r.startedAt,

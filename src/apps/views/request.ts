@@ -27,6 +27,7 @@ export type Req = {
   systems?: string | null
   currentWay?: string | null
   links?: string | null
+  for?: { kind: 'customer' | 'team'; name: string } | null
   status: string
   sizeDays: number | null
   needsCall?: boolean
@@ -105,6 +106,7 @@ export function renderRequest(r: Req, opts: { admin: boolean; banner?: string })
   const { admin } = opts
   const replyOwed = r.replyDueAt && !r.firstResponseAt && r.status !== 'done' && r.status !== 'declined'
   const facts = [
+    r.for ? `For ${r.for.name}` : null,
     r.type ? typeLabel[r.type] ?? r.type : null,
     r.sizeDays ? `${r.sizeDays} day${r.sizeDays === 1 ? '' : 's'}` : null,
     r.needsCall ? 'Needs a call' : null,

@@ -51,6 +51,7 @@ const CONTEXT = {
   result: 'The lead is in the CRM and tagged',
   systems: 'WordPress form, HighLevel',
   currentWay: 'Copied in by hand each morning',
+  for: 'team',
 }
 
 describe('intake and queue', () => {
@@ -145,7 +146,7 @@ describe('split and reorder', () => {
   it('splits big work into parts that queue where the parent sat', async () => {
     await seedClient(db)
     await createRequest(db, OWNER, { client: 'GMA', title: 'First', ...scoped })
-    await createRequest(db, OWNER, { client: 'GMA', title: 'Rebuild sales pipeline', type: 'build', trigger: 'Deal won', result: 'Pipeline live' })
+    await createRequest(db, OWNER, { client: 'GMA', title: 'Rebuild sales pipeline', type: 'build', trigger: 'Deal won', result: 'Pipeline live', for: 'team' })
     await createRequest(db, OWNER, { client: 'GMA', title: 'Last', ...scoped })
     await queueRequest(db, OWNER, 'GMA-001')
     await scopeRequest(db, OWNER, 'GMA-002', { sizeDays: 5 })

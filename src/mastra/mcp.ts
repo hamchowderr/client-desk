@@ -9,6 +9,7 @@ import { getDb } from '../db/client'
 import { getClientOverview } from '../domain/clients'
 import { digest } from '../domain/digest'
 import { missingContext } from '../domain/requests'
+import { resolveFor } from '../domain/customers'
 import { replyDueAt } from '../domain/time'
 import skills from '../skills.generated'
 import { principalFrom } from './principal'
@@ -87,7 +88,7 @@ const showBoard = createTool({
 const draftRequest = createTool({
   id: 'draft_request',
   description:
-    'Show the client a request card to check and send. Use this instead of submit_request: the card fills in as you write, and the client presses Submit on it. Nothing is saved until they do. A request can only be sent once it says what starts it, what they get back, which tools or accounts it touches, and how it is done today; draft as soon as you have a title, then ask for whatever the card still lists as missing, one short question at a time, and draft again with each answer.',
+    'Show the client a request card to check and send. Use this instead of submit_request: the card fills in as you write, and the client presses Submit on it. Nothing is saved until they do. A request can only be sent once it says what starts it, what they get back, which tools or accounts it touches, how it is done today, and who it is for (one of their customers, someone on their team, or their company itself; my_people lists them); draft as soon as you have a title, then ask for whatever the card still lists as missing, one short question at a time, and draft again with each answer.',
   inputSchema: z.object({
     title: z.string().describe('Short, in their words'),
     type: z.enum(['build', 'fix', 'decision', 'working_session']).optional(),
@@ -96,6 +97,10 @@ const draftRequest = createTool({
     systems: z.string().optional().describe('The tools, accounts and places it touches, e.g. their HighLevel, n8n, Google Drive'),
     currentWay: z.string().optional().describe("How it's done today, or what goes wrong now"),
     links: z.string().optional().describe('Examples, files or links that show what they mean (optional)'),
+    for: z
+      .string()
+      .optional()
+      .describe('Who it is for: one of their customers (e.g. Rene or The Tax Doctor), a team member (e.g. Cass), or their own company'),
     submittedBy: z.string().optional().describe('Name of the person on the client side'),
   }),
   mcp: ui,
@@ -104,14 +109,26 @@ const draftRequest = createTool({
     const p = principalFrom(context?.requestContext)
     if (p.kind !== 'client') throw new Error('draft_request is for client sign-ins; use create_request')
     const { client } = await getClientOverview(getDb(), p, p.clientId)
-    const missing = missingContext(input)
+    const draft = { ...input }
+    let forProblem: string | null = null
+    if (input.for?.trim()) {
+      try {
+        draft.for = (await resolveFor(getDb(), client, input.for)).forName
+      } catch (e) {
+        forProblem = (e as Error).message
+        draft.for = undefined
+      }
+    }
+    const missing = missingContext(draft)
     return {
-      draft: input,
+      draft,
       client: { code: client.code, name: client.name },
       replyByIfSentNow: replyDueAt(new Date(), client.timezone),
       missing: missing.map((m) => m.field),
       note: missing.length
-        ? `Shown as a card. It can't be sent yet. Ask the client, one at a time: ${missing.map((m) => m.label).join('; ')}. Then draft again.`
+        ? `Shown as a card. It can't be sent yet. Ask the client, one at a time: ${missing.map((m) => m.label).join('; ')}. Then draft again.${
+            forProblem ? ` About who it's for: ${forProblem}` : ''
+          }`
         : 'Shown as a card with a Submit button. Wait for the client to press it; only call submit_request yourself if they ask you to send it and cannot see the card.',
     }
   },
@@ -128,6 +145,7 @@ Taking a request. A request only helps Chowderr if it has the full context, so n
 2. What they get back when it works (the result), concretely.
 3. Which tools, accounts or places it touches (e.g. their HighLevel, n8n, Google Drive, website).
 4. How it's done today, or what goes wrong now.
+5. Who it's for: one of their customers (first and last name, and company) or someone on their team, or their company itself. my_people lists who they can pick; if the person isn't there, say Chowderr will add them.
 Links, files or examples help too. One request is one trigger and one result; if they describe several things, make several requests. Ask for missing pieces one short question at a time, in their words, and offer an example answer when they seem unsure. Use draft_request so they see the card fill in and press Submit themselves.
 
 Speak to them as "you" about their own work only. Never mention other clients or internal notes. Never promise sizes, dates or prices; Chowderr confirms scope. They can send as many requests as they like; a few run at once and the rest wait in their queue in order. Billing questions beyond my_billing go to Chowderr. When a screen reports they pressed something, it's done; confirm in a line and don't repeat it. More detail: skill://client-agent/SKILL.md.`

@@ -15,8 +15,9 @@ Both MCP servers speak the 2026-07-28 protocol and the older 2025-11-25 one, so 
 ## What the rules mean in code
 
 - **Requests** get ids per client (`GMA-012`), move `new → scoping → queued → active → in_review → done`, and can wait on the client, be declined or be split.
-- **Sending** (by a client) needs the full context: what starts it, what they get back, which tools or accounts it touches, and how it's done today. Links are optional. Clients can send as many requests as they like.
-- **Queueing** needs a type (build, fix, decision, working session), one trigger, one result and a size of 2–5 business days. Bigger work is split; the parts take the parent's place in the queue.
+- **Sending** (by a client) needs the full context: what starts it, what they get back, which tools or accounts it touches, and how it's done today, and who it's for. Links are optional. Clients can send as many requests as they like.
+- **Who it's for**: every request names one of the client's customers (first and last name, and company, added with `add_customer`), someone on their team, or the client's own company. It shows on every card and list, and `list_requests` filters by it.
+- **Queueing** needs who it's for, a type (build, fix, decision, working session), one trigger, one result and a size of 2–5 business days. Bigger work is split; the parts take the parent's place in the queue.
 - **Active limit** is per retainer (default 1, up to 10). Starting past it is refused. Delivering one starts the next in the queue.
 - **Reply clock**: a client message received before 10pm in the client's time zone on a business day is due a reply that day; otherwise by the end of the next business day. Your first client-visible note stops the clock.
 - **Kickoff** gates work: a retainer is `onboarding` until the kickoff is logged.

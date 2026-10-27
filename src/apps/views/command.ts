@@ -20,12 +20,13 @@ import {
   tell,
   toggleFullscreen,
   typeLabel,
+  forText,
 } from '../kit'
 
-type Item = { id: string; title: string; type: string | null; sizeDays: number | null; startedAt?: string | null }
+type Item = { id: string; title: string; for?: string | null; type: string | null; sizeDays: number | null; startedAt?: string | null }
 export type Board = {
   at: string
-  repliesDue: Array<{ id: string; client: string; title: string; dueAt: string; overdue: boolean }>
+  repliesDue: Array<{ id: string; client: string; title: string; for?: string | null; dueAt: string; overdue: boolean }>
   counts: { overdueReplies: number; repliesDueToday: number; active: number; queued: number; waitingOnClients: number }
   clients: Array<{
     code: string
@@ -51,7 +52,7 @@ function replies(b: Board, limit: number) {
     .map((r) => {
       const h = heat(r.dueAt)
       return `<div class="item">
-        <div class="grow"><div class="t">${esc(r.title)}</div><div class="small muted"><span class="rid">${esc(r.id)}</span> · ${esc(r.client)}</div></div>
+        <div class="grow"><div class="t">${esc(r.title)}</div><div class="small muted"><span class="rid">${esc(r.id)}</span> · ${esc(r.client)}${forText(r.for)}</div></div>
         <span class="small clock heat-${h}">${r.overdue ? 'overdue ' : ''}${esc(fromNow(r.dueAt))}</span>
         <button data-act="reply" data-id="${esc(r.id)}">Reply</button>
       </div>`
@@ -65,7 +66,7 @@ function row(i: Item, actions: string, n?: number) {
   const meta = [i.type ? typeLabel[i.type] : null, i.sizeDays ? `${i.sizeDays}d` : null].filter(Boolean).join(' · ')
   return `<div class="item">
     ${n ? `<span class="num">${n}</span>` : ''}
-    <div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${
+    <div class="grow"><div class="t">${esc(i.title)}</div><div class="small muted"><span class="rid">${esc(i.id)}</span>${forText(i.for)}${
       meta ? ` · ${esc(meta)}` : ''
     }</div>${i.startedAt ? progress(i.startedAt, i.sizeDays) : ''}</div>
     <div class="row">${actions}</div>
