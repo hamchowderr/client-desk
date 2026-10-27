@@ -34,6 +34,7 @@ import {
   reopenRequest,
   reorderQueue,
   scopeRequest,
+  setRequestFor,
   splitRequest,
   startNext,
   startRequest,
@@ -626,6 +627,24 @@ export const clientOps = [
     input: z.object({}),
     run: (db, p) => whoFor(db, p, clientOnly(p).clientId),
     http: { method: 'GET', path: '/desk/me/customers' },
+  }),
+  op({
+    id: 'add_my_customer',
+    description:
+      "Add one of this client's customers so requests can be for them. Always first name, last name and company, e.g. Rene Gonzalez, The Tax Doctor. Check my_people first so nobody is added twice.",
+    audience: 'client',
+    input: z.object({ firstName: z.string(), lastName: z.string(), company: z.string().optional() }),
+    run: (db, p, i) => addCustomer(db, clientOnly(p), clientOnly(p).clientId, i),
+    http: { method: 'POST', path: '/desk/me/customers' },
+  }),
+  op({
+    id: 'set_my_request_for',
+    description:
+      "Change who one of this client's requests is for: one of their customers (see my_people), a team member, or their own company.",
+    audience: 'client',
+    input: z.object({ request: requestRef, for: z.string() }),
+    run: (db, p, i) => setRequestFor(db, clientOnly(p), i.request, i.for),
+    http: { method: 'POST', path: '/desk/me/requests/:request/for' },
   }),
   op({
     id: 'add_message',

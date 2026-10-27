@@ -2,7 +2,7 @@ import { asc, eq } from 'drizzle-orm'
 import type { DbOrTx } from '../db/client'
 import { contacts, customers, type Client } from '../db/schema'
 import { DeskError } from './errors'
-import { type Principal, requireAdmin } from './principal'
+import type { Principal } from './principal'
 import { resolveClient } from './clients'
 
 export type For = { forKind: 'customer' | 'team'; forId: string | null; forName: string }
@@ -20,14 +20,13 @@ export function label(first: string, last: string | null | undefined, company: s
 
 const teamCompany = (client: Pick<Client, 'name' | 'company'>) => client.company || client.name
 
-/** Add one of a client's customers (e.g. Rene Gonzalez at The Tax Doctor). */
+/** Add one of a client's customers (e.g. Rene Gonzalez at The Tax Doctor). Chowderr or the client can. */
 export async function addCustomer(
   db: DbOrTx,
   p: Principal,
   clientRef: string,
   input: { firstName: string; lastName?: string; company?: string; notes?: string },
 ) {
-  requireAdmin(p)
   const client = await resolveClient(db, p, clientRef)
   const firstName = input.firstName.trim()
   if (!firstName) throw new DeskError('invalid', 'A customer needs a first name')
@@ -40,9 +39,15 @@ export async function addCustomer(
   if (same) throw new DeskError('conflict', `${label(firstName, lastName, company)} is already on ${client.name}'s list`)
   const [row] = await db
     .insert(customers)
-    .values({ clientId: client.id, firstName, lastName, company, notes: input.notes?.trim() || null })
+    .values({
+      clientId: client.id,
+      firstName,
+      lastName,
+      company,
+      notes: p.kind === 'admin' ? input.notes?.trim() || null : null,
+    })
     .returning()
-  return { ...row, label: label(row.firstName, row.lastName, row.company) }
+  return { firstName: row.firstName, lastName: row.lastName, company: row.company, label: label(row.firstName, row.lastName, row.company) }
 }
 
 /** Who a client's requests can be for: their customers and their team. */

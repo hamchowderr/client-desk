@@ -3,7 +3,7 @@ import type { Db } from '../src/db/client'
 import { addContact, getClientOverview } from '../src/domain/clients'
 import { addCustomer, whoFor } from '../src/domain/customers'
 import { OWNER } from '../src/domain/principal'
-import { createRequest, listRequests, queueRequest, scopeRequest, splitRequest } from '../src/domain/requests'
+import { createRequest, listRequests, queueRequest, scopeRequest, setRequestFor, splitRequest } from '../src/domain/requests'
 import { seedClient, testDb } from './helpers'
 
 let db: Db
@@ -85,5 +85,20 @@ describe('who a request is for', () => {
       'Jared Erdmann, Employer First Benefits Solutions',
       'Rene Gonzalez, The Tax Doctor',
     ])
+  })
+  it('the client can add their own customer and change who a request is for', async () => {
+    const { asClient } = await setup()
+    const added = await addCustomer(db, asClient, asClient.kind === 'client' ? asClient.clientId : '', {
+      firstName: 'Carlos',
+      lastName: 'Diaz',
+      company: 'Diaz Dental',
+    })
+    expect(added.label).toBe('Carlos Diaz, Diaz Dental')
+    const r = await createRequest(db, asClient, { client: 'GMA', title: 'CRM move', ...context, for: 'Rene' })
+    const moved = await setRequestFor(db, asClient, r.id, 'Carlos')
+    expect(moved.for?.name).toBe('Carlos Diaz, Diaz Dental')
+    await expect(
+      addCustomer(db, asClient, asClient.kind === 'client' ? asClient.clientId : '', { firstName: 'carlos', lastName: 'diaz', company: 'diaz dental' }),
+    ).rejects.toThrow(/already on/)
   })
 })

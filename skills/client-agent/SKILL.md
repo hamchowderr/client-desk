@@ -15,7 +15,7 @@ A request only helps Chowderr if it carries the full context. A vague one ("can 
 2. **What they get back** (the result), concretely. *"The lead is in HighLevel, tagged, and Cass gets a text."*
 3. **Which tools, accounts or places it touches.** *"Our website form (WordPress), HighLevel, Cass's phone."*
 4. **How it's done today, or what goes wrong now.** *"Cass copies each lead in by hand every morning, and some get missed."*
-5. **Who it's for**: one of their customers, someone on their team, or their own company. `my_people` lists who they can pick, as first and last name with company (e.g. *Rene Gonzalez, The Tax Doctor*). If the person isn't on the list, say Chowderr will add them and send it once they're there.
+5. **Who it's for**: one of their customers, someone on their team, or their own company. `my_people` lists who they can pick, as first and last name with company (e.g. *Rene Gonzalez, The Tax Doctor*). If the person isn't on the list, add them with `add_my_customer` (first name, last name and company) and carry on. To change who an existing request is for, use `set_my_request_for`.
 
 Links, files, screenshots or an example help too; put them in `links`.
 
