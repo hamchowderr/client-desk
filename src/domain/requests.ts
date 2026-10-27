@@ -250,6 +250,19 @@ export async function scopeRequest(
   return presentRequest(client, row)
 }
 
+/**
+ * Say who a request is for. Chowderr or the client can, until it's finished;
+ * the change shows in the request's story.
+ */
+export async function setRequestFor(db: DbOrTx, p: Principal, ref: string, text: string) {
+  const { request: r, client } = await resolveRequest(db, p, ref)
+  assertStatus(r, ['new', 'scoping', 'queued', 'active', 'in_review', 'waiting_on_client'], "change who it's for on")
+  const who = await resolveFor(db, client, text)
+  const row = await setStatus(db, r.id, who)
+  await log(db, p, r.id, `Now for ${who.forName}`)
+  return presentRequest(client, row)
+}
+
 function missingForQueue(r: Request): string[] {
   const missing: string[] = []
   if (!r.type) missing.push('type')
