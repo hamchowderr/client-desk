@@ -50,11 +50,14 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
     .where(inArray(requests.status, ['new', 'scoping', 'queued', 'active', 'in_review', 'waiting_on_client']))
     .orderBy(asc(requests.position), asc(requests.receivedAt))
 
+  // A request with a reply owed shows only under replies owed, not again in its client's intake.
+  const owed = new Set(replyRows.map((x) => x.request.id))
   const boards = []
   for (const { retainer, client } of open) {
     const mine = openRequests.filter((x) => x.client.id === client.id).map((x) => x.request)
-    const pick = (s: string) =>
-      mine
+    const intake = mine.filter((r) => !owed.has(r.id))
+    const pick = (s: string, from = mine) =>
+      from
         .filter((r) => r.status === s)
         .map((r) => ({
           id: formatRequestId(client.code, r.number),
@@ -72,7 +75,7 @@ export async function digest(db: DbOrTx, p: Principal, now = new Date()) {
       retainer: { status: state.status, activeLimit: state.activeLimit, nextChargeAt: state.nextChargeAt },
       active: pick('active'),
       queued: pick('queued'),
-      intake: [...pick('new'), ...pick('scoping')],
+      intake: [...pick('new', intake), ...pick('scoping', intake)],
       inReview: pick('in_review'),
       waitingOnClient: pick('waiting_on_client'),
     })
