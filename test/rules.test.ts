@@ -70,10 +70,13 @@ describe('intake and queue', () => {
     expect(r.currentWay).toBe(CONTEXT.currentWay)
     const board = await digest(db, OWNER, new Date('2026-10-15T02:00:00Z'))
     expect(board.repliesDue).toHaveLength(1)
+    expect(board.clients[0].intake).toHaveLength(0)
     expect(board).not.toHaveProperty('spots')
 
     await scopeRequest(db, OWNER, 'GMA-001', { type: 'fix', trigger: 'Form submit', result: 'Lead in CRM', sizeDays: 2 })
-    expect((await digest(db, OWNER)).repliesDue).toHaveLength(0)
+    const after = await digest(db, OWNER)
+    expect(after.repliesDue).toHaveLength(0)
+    expect(after.clients[0].intake.map((i) => i.id)).toEqual(['GMA-001'])
   })
 
   it("a client can't send a request without the full context, but the owner can log one bare", async () => {
