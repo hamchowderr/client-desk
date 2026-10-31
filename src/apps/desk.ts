@@ -2,10 +2,11 @@
  * The desk's MCP Apps view. Every desk tool that shows something opens this one
  * view, and it draws what fits the tool: a request being drafted, a request's
  * tracker, a client's work, the pause calendar, billing, the weekly recap,
- * the new-client form, or Chowderr's command center.
+ * the new-client form, the calendar, or Chowderr's command center.
  */
 import { app, applyContext, dataOf, draw, esc, hostContext, supersede } from './kit'
 import { renderBilling } from './views/billing'
+import { renderCalendar } from './views/calendar'
 import { renderCommand } from './views/command'
 import { type Draft, renderDraft, renderDraftResult } from './views/draft'
 import { renderPause, renderPauseDone } from './views/pause'
@@ -14,7 +15,7 @@ import { renderRequest } from './views/request'
 import { renderSetup } from './views/setup'
 import { renderList, renderStatus } from './views/status'
 
-const ADMIN_TOOLS = new Set(['digest', 'show_board', 'get_client', 'get_request', 'list_requests', 'create_request', 'queue_request', 'start_request', 'deliver_request', 'new_client', 'setup_client', 'weekly_recap', 'send_recap', 'billing_history'])
+const ADMIN_TOOLS = new Set(['digest', 'show_board', 'get_client', 'get_request', 'list_requests', 'create_request', 'queue_request', 'start_request', 'deliver_request', 'new_client', 'setup_client', 'weekly_recap', 'send_recap', 'billing_history', 'calendar'])
 
 const toolName = () => hostContext().toolInfo?.tool?.name ?? ''
 let redraw: (() => void) | null = null
@@ -29,6 +30,7 @@ function route(data: any) {
   }
   if (Array.isArray(data)) return renderList(data, { admin })
   if ('repliesDue' in data && 'clients' in data) return renderCommand(data)
+  if ('calendar' in data && 'events' in data) return renderCalendar(data, { tool: admin ? 'calendar' : 'my_calendar' })
   if ('setup' in data && 'missing' in data) return renderSetup(data)
   if ('payments' in data && 'retainer' in data) return renderBilling(data, { admin })
   if ('shipped' in data && 'upNext' in data) return renderRecap(data, { admin })
