@@ -49,6 +49,8 @@ const APP_TOOLS = new Set([
   'billing_history',
   'my_billing',
   'my_week',
+  'calendar',
+  'my_calendar',
 ])
 /** These return lists, which structuredContent can't hold; the app reads their JSON text. */
 const LIST_TOOLS = new Set(['list_requests', 'my_requests'])
