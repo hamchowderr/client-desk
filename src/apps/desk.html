@@ -178,6 +178,26 @@
       .month.paused { background: repeating-linear-gradient(135deg, var(--bg2) 0 6px, var(--bg1) 6px 12px); }
       .month.picked { outline: 2px solid var(--brand); outline-offset: -1px; }
 
+      /* Month calendar */
+      .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 12px; }
+      .cal .wd { font-size: 11px; color: var(--ink3); text-align: center; padding-bottom: 2px; }
+      .cal .d { min-height: 54px; padding: 4px 5px; border-radius: var(--r-md); text-align: left; display: flex; flex-direction: column; gap: 3px; align-items: stretch; justify-content: flex-start; font-weight: inherit; }
+      .cal .d.out { visibility: hidden; }
+      .cal .d.today .n { color: var(--brand); font-weight: var(--font-weight-semibold, 600); }
+      .cal .d.picked { outline: 2px solid var(--brand); outline-offset: -1px; }
+      .cal .d .n { font-size: 12px; font-variant-numeric: tabular-nums; }
+      .cal .marks { display: flex; flex-wrap: wrap; gap: 3px; }
+      .cal .marks i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink3); }
+      @container (max-width: 380px) { .cal .d { min-height: 40px; } }
+      .k-reply_due { color: var(--bad); } .k-started { color: var(--info); } .k-delivered { color: var(--ok); }
+      .k-charge { color: var(--ink2); } .k-paused, .k-ends { color: var(--warn); } .k-received { color: var(--ink3); }
+      .cal .marks i.k-reply_due, .legend i.k-reply_due { background: var(--bad); } .cal .marks i.k-started, .legend i.k-started { background: var(--info); }
+      .cal .marks i.k-delivered, .legend i.k-delivered { background: var(--ok); } .cal .marks i.k-charge, .legend i.k-charge { background: var(--ink2); }
+      .cal .marks i.k-paused, .cal .marks i.k-ends, .legend i.k-paused, .legend i.k-ends { background: var(--warn); }
+      .cal .marks i.k-received, .legend i.k-received { background: var(--line2); }
+      .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; font-size: 12px; color: var(--ink2); }
+      .legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
       /* Timeline */
       .tl { position: relative; margin-top: 12px; padding-left: 18px; }
       .tl::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 1.5px; background: var(--line2); }

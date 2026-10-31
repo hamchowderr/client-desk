@@ -11,6 +11,7 @@ import {
   updateClient,
 } from '../domain/clients'
 import { billingHistory, linkBilling } from '../domain/billing'
+import { calendar } from '../domain/calendar'
 import { addCustomer, whoFor } from '../domain/customers'
 import { crmFromEnv } from '../crm'
 import { syncCrm } from '../domain/crm'
@@ -273,6 +274,15 @@ export const adminOps = [
     input: z.object({ client: clientRef, ref: z.string().describe('Stripe customer or subscription id') }),
     run: (db, p, i) => linkBilling(db, p, i.client, i.ref),
     http: { method: 'POST', path: '/desk/clients/:client/retainer/billing' },
+  }),
+  op({
+    id: 'calendar',
+    description:
+      "The desk calendar for a month: requests received, replies due, work started and delivered, retainer charges, paused months and end dates, for every client or one. Also lists what's coming up in the next two weeks, so a scheduled task can ask what's next. Renders as a month calendar where the host supports MCP Apps.",
+    audience: 'admin',
+    input: z.object({ client: clientRef.optional(), month: month.optional().describe('Calendar month, e.g. 2026-12; defaults to this month') }),
+    run: (db, p, i) => calendar(db, p, i),
+    http: { method: 'GET', path: '/desk/calendar' },
   }),
   op({
     id: 'billing_history',
@@ -669,6 +679,15 @@ export const clientOps = [
     input: z.object({}),
     run: (db, p) => weeklyRecap(db, clientOnly(p), clientOnly(p).clientId),
     http: { method: 'GET', path: '/desk/me/week' },
+  }),
+  op({
+    id: 'my_calendar',
+    description:
+      "This client's calendar for a month: requests sent, when Chowderr's reply is due, work started and delivered, charge dates and paused months. Also lists what's coming up in the next two weeks. Renders as a month calendar where the host supports MCP Apps.",
+    audience: 'client',
+    input: z.object({ month: month.optional().describe('Calendar month, e.g. 2026-12; defaults to this month') }),
+    run: (db, p, i) => calendar(db, clientOnly(p), { month: i.month }),
+    http: { method: 'GET', path: '/desk/me/calendar' },
   }),
   op({
     id: 'plan_pause',
