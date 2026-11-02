@@ -5,6 +5,8 @@ description: Deliver a finished retainer request, close it, or handle feedback, 
 
 # Delivering
 
+Before delivering, closing or reopening, show Chowderr the request and the exact note, and wait for agreement. The delivery note is client-visible.
+
 1. `deliver_request` with a `note` the client will read (what was done, how to use it, anything they need to do) and the `deliverableUrl` if there is one.
    - This posts a client-visible delivery update, frees the active slot, and starts the next queued request automatically. Pass `startNext: false` only if Chowderr says to hold.
 2. When the client confirms it works, `close_request`.
