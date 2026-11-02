@@ -17,4 +17,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Again west of UTC: date code that leans on the machine's zone breaks there.
+      - run: npm test
+        env:
+          TZ: America/Los_Angeles
       - run: npm run build
