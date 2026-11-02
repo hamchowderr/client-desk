@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -10,7 +11,8 @@ import { createClient } from '../src/domain/clients'
 import { OWNER, type Principal } from '../src/domain/principal'
 import { startRetainer } from '../src/domain/retainers'
 
-const migrationsFolder = new URL('../drizzle', import.meta.url).pathname
+// fileURLToPath, not URL.pathname: pathname gives "/C:/..." on Windows.
+const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url))
 
 let databases = 0
 const urls = new WeakMap<object, string>()

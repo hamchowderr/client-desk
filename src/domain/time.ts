@@ -1,5 +1,5 @@
 import { TZDate } from '@date-fns/tz'
-import { addDays, addMonths, endOfDay, getDaysInMonth, isWeekend } from 'date-fns'
+import { addDays, endOfDay, isWeekend } from 'date-fns'
 
 /** Messages sent before this hour, client's local time, on a business day get a reply that day. */
 export const SAME_DAY_CUTOFF_HOUR = 22
@@ -35,7 +35,9 @@ export function parseMonth(month: string): { year: number; month: number } {
 
 export function shiftMonth(month: string, by: number): string {
   const { year, month: mm } = parseMonth(month)
-  return monthKey(addMonths(new Date(Date.UTC(year, mm - 1, 1)), by))
+  // Plain UTC month math. date-fns addMonths works in the machine's local
+  // zone, so west of UTC it could return the same month and loop forever.
+  return monthKey(new Date(Date.UTC(year, mm - 1 + by, 1)))
 }
 
 /**
@@ -44,8 +46,8 @@ export function shiftMonth(month: string, by: number): string {
  */
 export function chargeDateFor(month: string, anchor: Date): Date {
   const { year, month: mm } = parseMonth(month)
-  const first = new Date(Date.UTC(year, mm - 1, 1))
-  const day = Math.min(anchor.getUTCDate(), getDaysInMonth(first))
+  const daysInMonth = new Date(Date.UTC(year, mm, 0)).getUTCDate()
+  const day = Math.min(anchor.getUTCDate(), daysInMonth)
   return new Date(
     Date.UTC(year, mm - 1, day, anchor.getUTCHours(), anchor.getUTCMinutes(), anchor.getUTCSeconds()),
   )
