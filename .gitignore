@@ -7,3 +7,10 @@ dist
 *.log
 src/apps/*.generated.ts
 src/skills.generated.ts
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*

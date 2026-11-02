@@ -217,7 +217,7 @@ export const deskMcp = serveLegacyToo(new MCPServer({
   version: '0.1.0',
   description: 'Retainer clients, requests and queues for Otaku Solutions.',
   instructions:
-    'Client Desk tracks retainer clients and their requests. Requests are ids like GMA-012. A useful request says what starts it, what comes back, which tools or accounts it touches, and how it is done today; when logging or scoping one, fill those in or ask for them. Read the skill:// resources (desk-intake, desk-status, desk-delivery) before taking in, reporting on or delivering requests. The tools enforce the Retainer rules; when one refuses, explain the rule instead of working around it.',
+    'Client Desk tracks retainer clients and their requests. Requests are ids like GMA-012. A useful request says what starts it, what comes back, which tools or accounts it touches, and how it is done today; when logging or scoping one, fill those in or ask for them. Before creating a request or changing one (scope, queue, start, deliver, close), show the user the exact title and every field and wait for their agreement. Titles are short and plain: a few words naming the thing, never a sentence. Describe only the task as agreed. Read the skill:// resources (desk-intake, desk-status, desk-delivery) before taking in, reporting on or delivering requests. The tools enforce the Retainer rules; when one refuses, explain the rule instead of working around it.',
   tools: { ...tools(adminOps), show_board: showBoard },
   resources: skillResources(['desk-intake', 'desk-status', 'desk-delivery']),
   appResources: { [APP_URI]: deskApp },
