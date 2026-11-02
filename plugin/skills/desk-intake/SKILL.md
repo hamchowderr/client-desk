@@ -20,10 +20,14 @@ One request is **one trigger and one result** handed back to the client. It has 
 
 Every request is sized to **2 to 5 business days**. Anything bigger is split.
 
+## Agree first
+
+Before you create a request or change one (scope, queue, start, split), show Chowderr the exact title and every field you will set, and wait for agreement. A title is a few plain words naming the thing ("Know BS GHL Agency Account"), never a sentence. Describe only the task as agreed; other work done along the way gets its own request or none.
+
 ## Steps
 
 1. Find the client: `get_client` with their code (e.g. `GMA`). If you don't know the code, `list_clients`.
-2. Log it: `create_request` with a short title in the client's words and `source` (telegram, slack, email, call, owner).
+2. Log it: `create_request` with a short title and `source` (telegram, slack, email, call, owner).
 3. Scope it: `scope_request` with `type`, `trigger` (what starts it), `result` (what comes back), `systems` (which tools, accounts or places it touches), `currentWay` (how it's done today, or what goes wrong now), `for` (who it's for: one of the client's customers, a team member, or the client's own company; `who_for` lists them, `add_customer` adds someone with first name, last name and company), any `links`, and `sizeDays`.
    - If you can't tell the trigger or result from what the client said, don't guess. Ask Chowderr, or `wait_on_client` with the question.
    - If it needs a call to understand, set `needsCall: true`.
