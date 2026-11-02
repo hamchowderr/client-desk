@@ -98,6 +98,29 @@ describe('intake and queue', () => {
     await expect(scopeRequest(db, OWNER, 'GMA-001', { sizeDays: 8 })).rejects.toEqual(rule(/2 to 5 business days/))
   })
 
+  it('an active request can be renamed, and the rename shows in its story', async () => {
+    await seedClient(db)
+    await createRequest(db, OWNER, { client: 'GMA', title: 'Long working title', ...scoped })
+    await queueRequest(db, OWNER, 'GMA-001')
+    await startRequest(db, OWNER, 'GMA-001')
+    const r = await scopeRequest(db, OWNER, 'GMA-001', { title: 'Short Title' })
+    expect(r.title).toBe('Short Title')
+    expect(r.status).toBe('active')
+    const story = (await getRequest(db, OWNER, 'GMA-001')).timeline.map((t) => t.body)
+    expect(story).toContain('Updated title (was "Long working title")')
+    // the size rule still holds while active
+    await expect(scopeRequest(db, OWNER, 'GMA-001', { sizeDays: 8 })).rejects.toEqual(rule(/2 to 5 business days/))
+  })
+
+  it('a delivered request still cannot be rescoped', async () => {
+    await seedClient(db)
+    await createRequest(db, OWNER, { client: 'GMA', title: 'A', ...scoped })
+    await queueRequest(db, OWNER, 'GMA-001')
+    await startRequest(db, OWNER, 'GMA-001')
+    await deliverRequest(db, OWNER, 'GMA-001', { note: 'Done' })
+    await expect(scopeRequest(db, OWNER, 'GMA-001', { title: 'B' })).rejects.toThrow(/rescope/)
+  })
+
   it('needs an open retainer to take a request', async () => {
     await seedClient(db)
     await cancelRetainer(db, OWNER, 'GMA')
