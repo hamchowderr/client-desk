@@ -73,3 +73,5 @@
 
 sync:
     remote: "git+https://github.com/hamchowderr/client-desk.git"
+validation:
+    on-create: error
