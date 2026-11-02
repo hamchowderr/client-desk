@@ -239,13 +239,22 @@ export async function scopeRequest(
   assertType(patch.type)
   assertSize(patch.sizeDays)
   const { request: r, client } = await resolveRequest(db, p, ref)
-  assertStatus(r, ['new', 'scoping', 'queued', 'waiting_on_client'], 'rescope')
+  assertStatus(r, ['new', 'scoping', 'queued', 'active', 'waiting_on_client'], 'rescope')
   const { for: forText, ...rest } = patch
   const row = await setStatus(db, r.id, {
     ...rest,
     ...(forText?.trim() ? await resolveFor(db, client, forText) : {}),
     status: r.status === 'new' ? 'scoping' : r.status,
   })
+  // Work has started, so an edit to an active request goes in its story.
+  if (r.status === 'active') {
+    const changed = (Object.keys(rest) as (keyof typeof rest)[]).filter((k) => rest[k] !== undefined && rest[k] !== r[k])
+    if (forText?.trim() && row.forName !== r.forName) changed.push('for' as keyof typeof rest)
+    if (changed.length) {
+      const renamed = changed.includes('title') ? ` (was "${r.title}")` : ''
+      await log(db, p, r.id, `Updated ${changed.join(', ')}${renamed}`)
+    }
+  }
   await markResponded(db, p, r, now)
   return presentRequest(client, row)
 }
