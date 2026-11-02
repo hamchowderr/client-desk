@@ -19,7 +19,7 @@ import {
   startRequest,
 } from '../src/domain/requests'
 import { cancelRetainer, describeRetainer, logKickoff, pauseMonth, pausePlan, setActiveLimit } from '../src/domain/retainers'
-import { replyDueAt } from '../src/domain/time'
+import { chargeDateFor, replyDueAt, shiftMonth } from '../src/domain/time'
 import { scoped, seedClient, testDb } from './helpers'
 
 const rule = (msg: RegExp) => expect.objectContaining({ code: 'rule', message: expect.stringMatching(msg) })
@@ -53,6 +53,20 @@ const CONTEXT = {
   currentWay: 'Copied in by hand each morning',
   for: 'team',
 }
+
+describe('month math is UTC whatever the machine zone', () => {
+  it('shifts across the year end and back', () => {
+    expect(shiftMonth('2026-12', 1)).toBe('2027-01')
+    expect(shiftMonth('2026-12', -1)).toBe('2026-11')
+    expect(shiftMonth('2027-01', -1)).toBe('2026-12')
+    expect(shiftMonth('2026-01', 13)).toBe('2027-02')
+  })
+  it('clamps the charge day to the month it opens', () => {
+    const anchor = new Date('2026-01-31T16:00:00Z')
+    expect(chargeDateFor('2026-03', anchor).toISOString()).toBe('2026-03-31T16:00:00.000Z')
+    expect(chargeDateFor('2026-02', anchor).toISOString()).toBe('2026-02-28T16:00:00.000Z')
+  })
+})
 
 describe('intake and queue', () => {
   it('a client request lands as new with the reply clock running, and the owner answering stops it', async () => {
