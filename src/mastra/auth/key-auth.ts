@@ -40,6 +40,8 @@ export class DeskKeyAuth extends MastraAuthProvider<DeskUser> {
         '/health',
         ['/health', 'GET'],
         ['/desk/webhooks/stripe', 'POST'],
+        // The hub's Retainer automation proves itself with DESK_HOOK_SECRET.
+        ['/desk/hooks/retainer-paid', 'POST'],
         // Sign-in (Better Auth and its pages), and /mcp, which checks its own
         // bearer so it can answer a missing one with where to sign in.
         '/.well-known/*',
