@@ -5,6 +5,7 @@ import { getDb } from '../db/client'
 import { commitVersion, isDolt, isWriteConflict } from '../db/dolt'
 import { applyStripeEvent, type StripeEvent, verifyStripeSignature } from '../domain/billing'
 import { DeskError } from '../domain/errors'
+import { addPaidClient, hookSecretMatches, parseSignup } from '../domain/signup'
 import { principalFrom } from './principal'
 import { type Op, allOps } from './ops'
 import { runOp } from './run'
@@ -98,6 +99,37 @@ export const deskRoutes: ApiRoute[] = [
           )
         }
         return c.json(result)
+      } catch (e) {
+        const { status, body } = toErrorResponse(e)
+        return c.json(body, status as 400)
+      }
+    },
+  }),
+  registerApiRoute('/desk/hooks/retainer-paid', {
+    method: 'POST',
+    requiresAuth: false,
+    openapi: {
+      summary: 'retainer_paid_hook',
+      description: "The hub's Retainer welcome automation: adds the payer as a client. Needs DESK_HOOK_SECRET in x-hook-secret.",
+      tags: ['Billing'],
+    },
+    handler: async (c) => {
+      if (!process.env.DESK_HOOK_SECRET?.trim()) return c.json({ error: 'unavailable', message: 'Hook is not set up' }, 503)
+      const bearer = c.req.header('authorization')?.replace(/^Bearer\s+/i, '')
+      if (!hookSecretMatches(c.req.header('x-hook-secret') ?? bearer)) {
+        return c.json({ error: 'unauthorized', message: 'Bad hook secret' }, 401)
+      }
+      const signup = parseSignup(await c.req.json().catch(() => null))
+      if (!signup) return c.json({ error: 'invalid', message: 'No valid email' }, 400)
+      try {
+        const db = getDb()
+        const result = await addPaidClient(db, signup)
+        if (result.outcome === 'created' && (await isDolt(db))) {
+          await commitVersion(db, `hub checkout: added client ${result.code}`, 'hub').catch((e) =>
+            console.error('dolt commit failed', e),
+          )
+        }
+        return c.json(result, result.outcome === 'created' ? 201 : 200)
       } catch (e) {
         const { status, body } = toErrorResponse(e)
         return c.json(body, status as 400)

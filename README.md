@@ -126,6 +126,10 @@ Stripe tells the desk when an invoice is paid, so the next charge date moves on 
 
 A paid invoice finds its retainer by the Stripe customer or subscription id (`link_billing`), or, the first time, by the invoice email matching one of the client's contacts; that match saves the customer id for next time. A payment within 10 days of the next charge (or after it) moves the charge on a month. An earlier payment, an invoice that matches no client, and any other event are logged and change nothing. Redelivered events are ignored. Every payment is listed by `billing_history`, and on Doltgres each one is a commit authored by `stripe`.
 
+### New clients from the hub checkout
+
+When someone pays for the Retainer on the hub, the "Welcome: Retainer" automation in FluentCRM posts the payer to `https://desk.otakusolutions.io/desk/hooks/retainer-paid` (an outgoing webhook step, header `x-hook-secret`). The desk adds them as a client: the company name (or their name), a free code, the payer as the retainer owner so they can sign in, and a retainer at `DESK_RETAINER_RATE_CENTS` (default 150000, $1,500) with one active request, charged again a month later and in onboarding until the kickoff is logged. A payer who is already a contact on any client changes nothing, so a repeat or a reactivation is safe; restart an ended retainer by hand. The body is the raw contact or custom data (`email`, `first_name`, `last_name`, `company`). Set `DESK_HOOK_SECRET` on the server; without it the hook answers 503.
+
 ## CRM
 
 The desk mirrors its clients into FluentCRM on the hub. Each contact with an email gets the tags `Desk client`, their client code (e.g. `Desk: KBS`) and the retainer's state (`Desk: Active`, `Paused`, `Onboarding`, `Cancelling` or `Ended`; one at a time). New contacts are added as transactional, not as a marketing opt-in, and an existing contact keeps its status.
