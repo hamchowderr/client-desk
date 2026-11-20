@@ -28,6 +28,9 @@ export const mcpResource = () => `${publicUrl()}/mcp`
 export const issuer = () => `${publicUrl()}/auth`
 export const AUTH_SCHEMA = 'desk_auth'
 
+/** How long a used renewal token may be presented again and get the same new tokens back. */
+export const REFRESH_REUSE_SECONDS = 24 * 60 * 60
+
 /** The desk email claim on access tokens, so /mcp can find the contact without a lookup. */
 export const EMAIL_CLAIM = 'https://desk.otakusolutions.io/email'
 
@@ -93,6 +96,10 @@ export function deskAuthConfig(opts: DeskAuthOptions) {
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
         customAccessTokenClaims: ({ user }) => (user?.email ? { [EMAIL_CLAIM]: user.email.toLowerCase() } : {}),
+        // Every Claude Code window shares one client id. A window still holding a renewal token
+        // another window already used would otherwise sign out every window (the library deletes
+        // the whole token family on reuse). Within this window the reuse gets the same new tokens.
+        refreshTokenReuseInterval: REFRESH_REUSE_SECONDS,
       }),
       cimd({ fetchClientMetadataResource, metadataProfile: 'mcp-2026-07-28' }),
     ],

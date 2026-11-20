@@ -177,6 +177,52 @@ describe('connector sign-in with an emailed code', () => {
     expect(out.refused).toBeTruthy()
   })
 
+  it('a connector that asked for offline_access gets a refresh token and renews without a new sign-in', async () => {
+    const out = await connect('owner@otaku.example')
+    expect(out.tokens!.refresh_token).toBeTruthy()
+    const renewed = await app.request(`${BASE}/auth/oauth2/token`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: out.tokens!.refresh_token!,
+        client_id: out.clientId!,
+        resource: `${BASE}/mcp`,
+      }),
+    })
+    expect(renewed.status).toBe(200)
+    const fresh = (await renewed.json()) as { access_token: string }
+    expect((await deskUserForToken(db, fresh.access_token))?.principal).toEqual({ kind: 'admin', label: 'owner@otaku.example' })
+  })
+
+  it('a second window renewing with an already-used token gets the same new tokens and signs nobody out', async () => {
+    const out = await connect('owner@otaku.example')
+    const renew = (refresh_token: string) =>
+      app.request(`${BASE}/auth/oauth2/token`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token, client_id: out.clientId!, resource: `${BASE}/mcp` }),
+      })
+    const first = await renew(out.tokens!.refresh_token!)
+    expect(first.status).toBe(200)
+    const firstBody = (await first.json()) as { access_token: string; refresh_token: string }
+
+    // An hour later another window still holds the old token and renews with it.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 60 * 60 * 1000)
+    try {
+      const stale = await renew(out.tokens!.refresh_token!)
+      expect(stale.status).toBe(200)
+      // The first window's newer token still works, so nobody was signed out.
+      const next = await renew(firstBody.refresh_token)
+      expect(next.status).toBe(200)
+      const fresh = (await next.json()) as { access_token: string }
+      expect((await deskUserForToken(db, fresh.access_token))?.principal).toEqual({ kind: 'admin', label: 'owner@otaku.example' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('the sign-in page refuses a tampered or missing request', async () => {
     expect((await app.request(`${BASE}/sign-in?client_id=x&sig=nope`)).status).toBe(400)
     expect((await app.request(`${BASE}/consent`)).status).toBe(400)
