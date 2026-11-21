@@ -21,6 +21,7 @@ services:
       - COPY_FROM_DATABASE_URL=${COPY_FROM_DATABASE_URL:-}
     depends_on:
       - doltgres
+    mem_limit: 1g
     restart: unless-stopped
 
   doltgres:
@@ -31,6 +32,7 @@ services:
       - DOLTGRES_PASSWORD=${SERVICE_PASSWORD_DOLTGRES}
     volumes:
       - doltgres-data:/var/lib/doltgres
+    mem_limit: 1g
     restart: unless-stopped
 
 volumes:
