@@ -8,13 +8,13 @@ import { billingMonthAt, chargeDateFor, parseMonth, shiftMonth } from './time'
 /** Pause by the month, up to three months in a row. */
 export const MAX_CONSECUTIVE_PAUSED_MONTHS = 3
 
-export async function loadOpenRetainer(db: DbOrTx, clientId: string): Promise<Retainer | null> {
+export async function loadOpenRetainer(db: DbOrTx, clientId: string, now = new Date()): Promise<Retainer | null> {
   const [row] = await db
     .select()
     .from(retainers)
     .where(and(eq(retainers.clientId, clientId), ne(retainers.status, 'ended')))
   if (!row) return null
-  return settleCancellation(db, row)
+  return settleCancellation(db, row, now)
 }
 
 /** A cancellation takes effect at the end of the paid month; settle it lazily on read. */
@@ -37,9 +37,9 @@ async function clientIdFor(db: DbOrTx, p: Principal, clientRef: string): Promise
   return c.id
 }
 
-export async function requireOpenRetainer(db: DbOrTx, p: Principal, clientRef: string) {
+export async function requireOpenRetainer(db: DbOrTx, p: Principal, clientRef: string, now = new Date()) {
   const clientId = await clientIdFor(db, p, clientRef)
-  const r = await loadOpenRetainer(db, clientId)
+  const r = await loadOpenRetainer(db, clientId, now)
   if (!r) throw new DeskError('rule', 'This client has no open retainer')
   return r
 }

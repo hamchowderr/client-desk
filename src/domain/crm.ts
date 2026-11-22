@@ -22,7 +22,7 @@ function splitName(name: string) {
 export async function syncClientToCrm(db: DbOrTx, crm: CrmAdapter, clientId: string, now = new Date()) {
   const [client] = await db.select().from(clients).where(eq(clients.id, clientId))
   if (!client) return { client: null, contacts: 0 }
-  const r = await loadOpenRetainer(db, clientId)
+  const r = await loadOpenRetainer(db, clientId, now)
   const state = r ? (await describeRetainer(db, r, now)).status : 'ended'
   const people = await db
     .select()
