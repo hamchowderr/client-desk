@@ -139,7 +139,9 @@ describe('intake and queue', () => {
     await seedClient(db)
     await cancelRetainer(db, OWNER, 'EA')
     // still open until the period end
-    await expect(createRequest(db, OWNER, { client: 'EA', title: 'x' })).resolves.toBeTruthy()
+    await expect(
+      createRequest(db, OWNER, { client: 'EA', title: 'x', receivedAt: new Date('2026-11-10T12:00:00Z') }),
+    ).resolves.toBeTruthy()
   })
 })
 
