@@ -188,13 +188,13 @@ export async function createRequest(db: Db, p: Principal, input: NewRequest) {
     if (client && dolt) await tx.update(clients).set({ claim: sql`gen_random_uuid()` }).where(eq(clients.id, client.id))
     if (!client) throw notFound('Client')
     assertCanSeeClient(p, client.id)
-    const retainer = await loadOpenRetainer(tx, client.id)
+    const receivedAt = input.receivedAt ?? new Date()
+    const retainer = await loadOpenRetainer(tx, client.id, receivedAt)
     if (!retainer) throw ruleBroken(`${client.name} has no open retainer, so requests can't be taken`)
     const forWho = input.for?.trim() ? await resolveFor(tx, client, input.for) : null
 
     const number = client.requestSeq + 1
     await tx.update(clients).set({ requestSeq: number }).where(eq(clients.id, client.id))
-    const receivedAt = input.receivedAt ?? new Date()
     const fromClient = p.kind === 'client'
     const [row] = await tx
       .insert(requests)
